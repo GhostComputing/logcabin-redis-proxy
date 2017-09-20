@@ -52,12 +52,12 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
 
 The project is woking on the following feature:
 
-- High performance and asynchronous;
+- High performance and asynchronous
 
-- Support more redis-like command;
+- Support more redis-like command
 
-- More test cases(both unit test and integrated test);
+- More test cases(both unit test and integrated test)
 
 - Key sharding
 
-- Add more log;
+- Add more log
