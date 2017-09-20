@@ -24,7 +24,7 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
       
 - Then, run logcabin-redis-proxy
 
-      $ ./logcabin_redis_proxy -c localhost:5254 -s 1024 -p 6381 -a "127.0.0.1"
+      $ ./logcabin_redis_proxy -c localhost:5254 -s 1024 -p 6380 -a "127.0.0.1"
       
 - Try redis command
 
