@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
+#include <getopt.h>
 
 #include "proxy.h"
 #include "LogCabin/Client.h"
@@ -157,11 +158,116 @@ static void accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int 
     assert(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, nullptr) != AE_ERR);
 }
 
-int main()
+class option_parser {
+public:
+    option_parser(int &argc, char** &argv)
+        : argc(argc)
+        , argv(argv)
+        , set_size(1024)
+        , service_port(6380)
+        , cluster("127.0.0.1:5254")
+        , bind_addr("0.0.0.0")
+    {
+
+        if (argc < 2) {
+            usage();
+            exit(1);
+        }
+
+        while (true) {
+            static struct option longOptions[] = {
+                {"cluster", required_argument, NULL, 'c'},
+                {"help", no_argument, NULL, 'h'},
+                {"size", required_argument, NULL, 's'},
+                {"port", required_argument, NULL, 'p'},
+                {"address", required_argument, NULL, 'a'},
+                {0, 0, 0, 0}
+            };
+            int c = getopt_long(argc, argv, "c:hs:p:a:", longOptions, NULL);
+
+            // Detect the end of the options
+            if (c == -1)
+                break;
+
+            switch (c) {
+                case 'c':
+                    cluster = optarg;
+                    break;
+                case 's':
+                    set_size = static_cast<int>(atoi(optarg));
+                    break;
+                case 'p':
+                    service_port = static_cast<int>(atoi(optarg));
+                    break;
+                case 'a':
+                    bind_addr = optarg;
+                    break;
+                case 'h':
+                    usage(),
+                    exit(0);
+                case '?':
+                default:
+                    // getopt_long already printed an error message.
+                    usage();
+                    exit(1);
+            }
+        }
+    }
+
+    void usage() {
+        std::cout
+        << "Usage: " << argv[0] << " [options]"
+        << std::endl
+        << std::endl
+
+        << "Options:"
+        << std::endl
+
+        << "  -c <addresses>, --cluster=<addresses>  "
+        << "Network addresses of the LogCabin, comma-separated (default: localhost:5254)"
+        << std::endl
+
+        << "  -h, --help "
+        << "Print this usage information"
+        << std::endl
+
+        << "  -s <set_size> --size=<set_size> "
+        << "Size of event loop [default: 1024]"
+        << std::endl
+
+        << "  -p <service_port> --port=<service_port> "
+        << "Service port of proxy"
+        << std::endl
+
+        << "  -a <bind_addr> --address=<bind_addr> "
+        << "Binding address of proxy"
+        << std::endl
+
+        << std::endl;
+    }
+
+    int &argc;
+    char** &argv;
+    std::string cluster;
+    std::string bind_addr;
+    int service_port;
+    int set_size;
+};
+
+int main(int argc, char** argv)
 {
-    Cluster cluster("127.0.0.1:5254");
-    Tree tree = cluster.getTree();
-    pTree = std::make_shared<Tree>(tree);
-    logcabin_redis_proxy::proxy proxy = {6380, 1024, "0.0.0.0", write_to_client, read_from_client, accept_tcp_handler};
-    proxy.run();
+    try {
+        option_parser options(argc, argv);
+        Cluster cluster(options.cluster);
+        Tree tree = cluster.getTree();
+        pTree = std::make_shared<Tree>(tree);
+        logcabin_redis_proxy::proxy proxy = {options.service_port, options.set_size, options.bind_addr,
+                                             write_to_client, read_from_client, accept_tcp_handler};
+        proxy.run();
+    } catch (const LogCabin::Client::Exception &e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        exit(1);
+    }
 }

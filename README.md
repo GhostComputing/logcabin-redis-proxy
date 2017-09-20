@@ -10,6 +10,7 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
 
 - run the following command:
 
+      $ git submodule update --init # download submodule simple_resp 
       $ mkdir build && cd build
       $ cmake ..
       $ make -j`nproc`
@@ -23,7 +24,7 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
       
 - Then, run logcabin-redis-proxy
 
-      $ ./logcabin_redis_proxy # default running on :6380
+      $ ./logcabin_redis_proxy -c localhost:5254 -s 1024 -p 6381 -a "127.0.0.1"
       
 - Try redis command
 
@@ -56,3 +57,7 @@ The project is woking on the following feature:
 - Support more redis-like command;
 
 - More test cases(both unit test and integrated test);
+
+- Key sharding
+
+- Add more log;

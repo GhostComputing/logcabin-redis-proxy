@@ -20,11 +20,10 @@ set(SOURCE_FILES
     )
 
 set(THIRD_PARTY_LIBS
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/logcabin/liblogcabin.a
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/logcabin/liblogcabin.a
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/gtest-c6d1811/libgtest.a
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/rocksdb-5.2.1/librocksdb.a
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/protobuf-2.6.1/libprotobuf.a
-
     )
 
 include_directories(
@@ -45,12 +44,15 @@ elseif (UNIX)
     find_library(JEMALLOC_LIB_STATIC NAMES libjemalloc.a)
     find_library(BOOST_SYSTEM_LIB_STATIC NAMES libboost_system.a)
 
-    set(BASE_LIBS ${LZ4_LIB_STATIC}
+    set(BASE_LIBS
+            ${LZ4_LIB_STATIC}
             ${CRYPTOPP_LIB_STATIC}
-            pthread rt ${SNAPPY_LIB_STATIC}
-            z ${BZ2_LIB_STATIC}
+            ${SNAPPY_LIB_STATIC}
+            ${BZ2_LIB_STATIC}
             ${JEMALLOC_LIB_STATIC}
-            ${BOOST_SYSTEM_LIB_STATIC})
+            ${BOOST_SYSTEM_LIB_STATIC}
+            z pthread rt
+    )
 else ()
     message(STATUS "Can not find library in non-Linux machine")
 endif ()
