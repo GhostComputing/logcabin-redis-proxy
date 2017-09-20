@@ -1,0 +1,3 @@
+[submodule "deps/simple_resp"]
+	path = deps/simple_resp
+	url = https://github.com/GhostComputing/simple_resp
