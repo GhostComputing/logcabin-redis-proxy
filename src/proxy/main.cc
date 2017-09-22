@@ -14,6 +14,8 @@
 
 using LogCabin::Client::Cluster;
 using LogCabin::Client::Tree;
+using LogCabin::Client::Result;
+using LogCabin::Client::Status;
 
 static std::shared_ptr<Tree> pTree = nullptr;
 
@@ -39,19 +41,22 @@ static std::string to_uppercase(std::string s)
     return s;
 }
 
-static void handle_rpush_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
+static std::string handle_rpush_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
 {
     try {
+        if (redis_args.size() < 3) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'rpush' command"});
+        }
         std::string key = redis_args[1];
         for (auto it = redis_args.begin() + 2; it != redis_args.end(); ++it) {
-            pTree->rpushEx(key, *it);
+            pTree->rpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
         }
-        enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
+        return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
                   << std::endl;
-        enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
     }
 }
 
@@ -84,28 +89,40 @@ static std::vector<std::string> split_list_elements(const std::string &original)
     return elements;
 }
 
-static void handle_lrange_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
+static std::string handle_lrange_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
 {
     try {
-        enc.encode(simple_resp::ARRAYS, std::move(split_list_elements(pTree->readEx(redis_args[1]))));
+        return enc.encode(simple_resp::ARRAYS, std::move(split_list_elements(pTree->readEx(redis_args[1]))));
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
                   << std::endl;
-        enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
     }
 }
 
-static void handle_ltrim_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
+static std::string handle_ltrim_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
 {
     try {
-        pTree->ltrim(redis_args[1], redis_args[2]);
-        enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
+        Result result;
+        if (redis_args.size() != 4) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'ltrim' command"});
+        }
+
+        result = pTree->ltrim(redis_args[1], redis_args[2] + " " + redis_args[3]);
+
+        if (result.status == Status::OK) {
+            return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
+        } else if (result.status == Status::INVALID_ARGUMENT) {
+            return enc.encode(simple_resp::ERRORS, {"ERR invalid arguments for 'ltrim' command"});
+        } else {
+            return enc.encode(simple_resp::ERRORS, {"ERR unknown error for 'ltrim' command"});
+        }
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
                   << std::endl;
-        enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
 
@@ -118,6 +135,7 @@ static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int ma
     char send_buffer[buffer_size] = {0};
     simple_resp::Decoder dec;
     simple_resp::Encoder enc;
+    std::string response;
 
     ssize_t size = read(fd, recv_buffer, buffer_size);
     if (size <= 0) {
@@ -126,19 +144,19 @@ static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int ma
         if (dec.decode(recv_buffer) == simple_resp::OK) {
             std::string command = std::move(to_uppercase(dec.decoded_redis_command[0]));
             if (command == "RPUSH") {
-                handle_rpush_request(dec.decoded_redis_command, enc);
+                response = handle_rpush_request(dec.decoded_redis_command, enc);
             } else if (command == "LRANGE") {
-                handle_lrange_request(dec.decoded_redis_command, enc);
+                response = handle_lrange_request(dec.decoded_redis_command, enc);
             } else if (command == "LTRIM") {
-                handle_ltrim_request(dec.decoded_redis_command, enc);
+                response = handle_ltrim_request(dec.decoded_redis_command, enc);
             } else {
-                enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
+                response = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
             }
         } else {
-            enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
+            response = enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
             aeDeleteFileEvent(loop, fd, mask);
         }
-        reply(fd, send_buffer, enc.encoded_redis_command);
+        reply(fd, send_buffer, response);
     }
 }
 
