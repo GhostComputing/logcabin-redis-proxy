@@ -60,39 +60,47 @@ static std::string handle_rpush_request(const std::vector<std::string>& redis_ar
     }
 }
 
+//TODO: need to refractor such ugly code
 static std::vector<std::string> split_list_elements(const std::string &original) {
-    std::string s(original);
     std::vector<std::string> elements;
+    if (original.length() < 0) {
+        return elements;
+    } else {
+        std::string s(original);
+        std::string delimiter1 = ",";
+        std::string delimiter2 = ":";
+        std::string token;
 
-    std::string delimiter1 = ",";
-    std::string delimiter2 = ":";
-    std::string token;
+        size_t pos = 0;
+        int counter = 0;
 
-    size_t pos = 0;
-    int counter = 0;
-
-    while ((pos = s.find(delimiter1)) != std::string::npos) {
-        token = s.substr(0, pos);
-        elements.push_back(token);
-        s.erase(0, pos + delimiter1.length());
-    }
-
-    for (auto it = elements.begin(); it != elements.end(); it++) {
-        counter = 0;
-        while ((pos = it->find(delimiter2)) != std::string::npos && counter <= 4) {
-            counter++;
-            token = it->substr(0, pos);
-            it->erase(0, pos + delimiter2.length());
+        while ((pos = s.find(delimiter1)) != std::string::npos) {
+            token = s.substr(0, pos);
+            elements.push_back(token);
+            s.erase(0, pos + delimiter1.length());
         }
-    }
 
-    return elements;
+        for (auto it = elements.begin(); it != elements.end(); it++) {
+            counter = 0;
+            while ((pos = it->find(delimiter2)) != std::string::npos && counter <= 4) {
+                counter++;
+                token = it->substr(0, pos);
+                it->erase(0, pos + delimiter2.length());
+            }
+        }
+
+        return elements;
+    }
 }
 
 static std::string handle_lrange_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
 {
     try {
-        return enc.encode(simple_resp::ARRAYS, std::move(split_list_elements(pTree->readEx(redis_args[1]))));
+        if (redis_args.size() != 4) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'lrange' command"});
+        }
+        //FIXME: need to detect return value but server is not yet support
+        return enc.encode(simple_resp::ARRAYS, std::move(split_list_elements(pTree->lrange(redis_args[1], redis_args[2] + " " + redis_args[3]))));
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
