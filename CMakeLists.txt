@@ -3,11 +3,16 @@ project(logcabin_redis_proxy)
 
 set(CMAKE_CXX_STANDARD 11)
 
-if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built)
-    message(STATUS "Uncompress pre_built package =>")
+# build logcabin
+if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/build)
+    message(STATUS "Building logcabin =>")
     execute_process(
-            COMMAND "tar" axvf ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built.tar.gz
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps
+            COMMAND "cmake" .
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/
+    )
+    execute_process(
+            COMMAND "make"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/
     )
 endif()
 
@@ -20,16 +25,16 @@ set(SOURCE_FILES
     )
 
 set(THIRD_PARTY_LIBS
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/logcabin/liblogcabin.a
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/gtest-c6d1811/libgtest.a
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/rocksdb-5.2.1/librocksdb.a
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/protobuf-2.6.1/libprotobuf.a
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/liblogcabin.a
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/build/third_party/gtest-c6d1811/libgtest.a
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/build/third_party/rocksdb-5.2.1/librocksdb.a
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/build/third_party/protobuf-2.6.1/lib/libprotobuf.a
     )
 
 include_directories(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/simple_resp/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/pre_built/logcabin/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/include
     )
 
 add_subdirectory(deps/simple_resp)
