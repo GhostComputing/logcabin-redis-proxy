@@ -26,7 +26,6 @@ static void write_to_client(aeEventLoop *loop, int fd, void *clientdata, int mas
 
 static void reply(int fd, char *send_buffer, std::string &content)
 {
-    std::cout << "reply:" << content << std::endl;
     memcpy(send_buffer, content.c_str(), content.length());
     write(fd, send_buffer, content.length());
 }
