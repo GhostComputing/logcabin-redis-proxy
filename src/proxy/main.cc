@@ -40,7 +40,7 @@ static std::string to_uppercase(std::string s)
     return s;
 }
 
-static std::string handle_rpush_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
+static std::string handle_rpush_request(const std::vector<std::string>& redis_args, simple_resp::encoder &enc)
 {
     try {
         if (redis_args.size() < 3) {
@@ -92,7 +92,7 @@ static std::vector<std::string> split_list_elements(const std::string &original)
     }
 }
 
-static std::string handle_lrange_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
+static std::string handle_lrange_request(const std::vector<std::string>& redis_args, simple_resp::encoder &enc)
 {
     try {
         if (redis_args.size() != 4) {
@@ -108,7 +108,7 @@ static std::string handle_lrange_request(const std::vector<std::string>& redis_a
     }
 }
 
-static std::string handle_ltrim_request(const std::vector<std::string>& redis_args, simple_resp::Encoder &enc)
+static std::string handle_ltrim_request(const std::vector<std::string>& redis_args, simple_resp::encoder &enc)
 {
     try {
         Result result;
@@ -140,8 +140,8 @@ static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int ma
     const int buffer_size = 1024;
     char recv_buffer[buffer_size] = {0};
     char send_buffer[buffer_size] = {0};
-    simple_resp::Decoder dec;
-    simple_resp::Encoder enc;
+    simple_resp::decoder dec;
+    simple_resp::encoder enc;
     std::string response;
 
     ssize_t size = read(fd, recv_buffer, buffer_size);
