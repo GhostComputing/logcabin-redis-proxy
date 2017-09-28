@@ -1,6 +1,9 @@
 #include <iostream>
 #include <vector>
-#include <memory>
+#include <queue>
+#include <mutex>
+#include <chrono>
+#include <thread>
 
 #include <cstdio>
 #include <cstdlib>
@@ -17,7 +20,14 @@ using LogCabin::Client::Tree;
 using LogCabin::Client::Result;
 using LogCabin::Client::Status;
 
+struct request {
+    int fd;
+    std::string cmd;
+};
+
 static std::shared_ptr<Tree> pTree = nullptr;
+static std::queue<request> request_queue;
+std::mutex request_queue_mutext;
 
 static void write_to_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 {
@@ -133,22 +143,15 @@ static std::string handle_ltrim_request(const std::vector<std::string>& redis_ar
     }
 }
 
-// TODO: Handle the connection event in C++11 style
-// TODO: Change async way to handle this
-static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
+static void process_req(const std::vector<request> &req)
 {
-    const int buffer_size = 1024;
-    char recv_buffer[buffer_size] = {0};
-    char send_buffer[buffer_size] = {0};
     simple_resp::decoder dec;
     simple_resp::encoder enc;
     std::string response;
+    char send_buffer[1024] = {'0'};
 
-    ssize_t size = read(fd, recv_buffer, buffer_size);
-    if (size <= 0) {
-        aeDeleteFileEvent(loop, fd, mask);
-    } else {
-        if (dec.decode(recv_buffer) == simple_resp::OK) {
+    for (const request & r : req) {
+        if (dec.decode(r.cmd) == simple_resp::OK) {
             std::string command = std::move(to_uppercase(dec.decoded_redis_command[0]));
             if (command == "RPUSH") {
                 response = handle_rpush_request(dec.decoded_redis_command, enc);
@@ -161,9 +164,51 @@ static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int ma
             }
         } else {
             response = enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
-            aeDeleteFileEvent(loop, fd, mask);
         }
-        reply(fd, send_buffer, response);
+        reply(r.fd, send_buffer, response);
+    }
+}
+
+void worker(int thread_num)
+{
+    int i;
+    std::vector<request> handle_requests;
+    std::cout << "worker start: " << thread_num << std::endl;
+    while(1) {
+        request_queue_mutext.lock();
+        i = 0;
+        int handle_req_num = request_queue.size() / thread_num > 0 ? int(request_queue.size() / thread_num):int(request_queue.size());
+        while (!request_queue.empty()) {
+            if (++i > handle_req_num) {
+                break;
+            }
+            request r = request_queue.front();
+            handle_requests.push_back(r);
+            request_queue.pop();
+        }
+        request_queue_mutext.unlock();
+        process_req(handle_requests);
+        handle_requests.clear();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+}
+
+static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
+{
+    const int buffer_size = 1024;
+    char recv_buffer[buffer_size] = {0};
+    ssize_t size = read(fd, recv_buffer, buffer_size);
+
+    if (size < 0) {
+        std::cerr << "error happend: " << strerror(errno) << std::endl;
+        aeDeleteFileEvent(loop, fd, mask);
+    } else if (size == 0) {
+        aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
+    } else {
+        std::string command(recv_buffer);
+        request req = {fd, command};
+        request_queue.emplace(req);
     }
 }
 
@@ -174,7 +219,6 @@ static void accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int 
 
     // create client socket
     client_fd = anetTcpAccept(nullptr, fd, client_ip, 128, &client_port);
-    std::cout << "Accepted " << client_ip << ":" << client_port << std::endl;
 
     // set client socket non-block
     anetNonBlock(nullptr, client_fd);
@@ -192,6 +236,7 @@ public:
         , service_port(6380)
         , cluster("127.0.0.1:5254")
         , bind_addr("0.0.0.0")
+        , thread_num(10)
     {
 
         if (argc < 2) {
@@ -206,9 +251,10 @@ public:
                 {"size", required_argument, NULL, 's'},
                 {"port", required_argument, NULL, 'p'},
                 {"address", required_argument, NULL, 'a'},
+                {"thread_num", required_argument, NULL, 't'},
                 {0, 0, 0, 0}
             };
-            int c = getopt_long(argc, argv, "c:hs:p:a:", longOptions, NULL);
+            int c = getopt_long(argc, argv, "c:hs:p:a:t:", longOptions, NULL);
 
             // Detect the end of the options
             if (c == -1)
@@ -219,13 +265,16 @@ public:
                     cluster = optarg;
                     break;
                 case 's':
-                    set_size = static_cast<int>(atoi(optarg));
+                    set_size = atoi(optarg);
                     break;
                 case 'p':
-                    service_port = static_cast<int>(atoi(optarg));
+                    service_port = atoi(optarg);
                     break;
                 case 'a':
                     bind_addr = optarg;
+                    break;
+                case 't':
+                    thread_num = atoi(optarg);
                     break;
                 case 'h':
                     usage(),
@@ -268,6 +317,10 @@ public:
         << "Binding address of proxy"
         << std::endl
 
+        << "  -t <thread_num> --thread_num=<num> "
+        << "Num of working thread"
+        << std::endl
+
         << std::endl;
     }
 
@@ -277,6 +330,7 @@ public:
     std::string bind_addr;
     int service_port;
     int set_size;
+    int thread_num;
 };
 
 int main(int argc, char** argv)
@@ -288,6 +342,13 @@ int main(int argc, char** argv)
         pTree = std::make_shared<Tree>(tree);
         logcabin_redis_proxy::proxy proxy = {options.service_port, options.set_size, options.bind_addr,
                                              write_to_client, read_from_client, accept_tcp_handler};
+        std::vector<std::thread> threads;
+
+        // TODO: maybe need to join
+        for (int i = 0; i != options.thread_num; ++i) {
+            threads.emplace_back(std::thread(worker, options.thread_num));
+        }
+
         proxy.run();
     } catch (const LogCabin::Client::Exception &e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
