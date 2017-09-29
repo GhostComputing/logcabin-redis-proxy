@@ -27,7 +27,9 @@ struct request {
 
 static std::shared_ptr<Tree> pTree = nullptr;
 static std::queue<request> request_queue;
-std::mutex request_queue_mutext;
+static simple_resp::decoder dec;
+static simple_resp::encoder enc;
+std::mutex request_queue_mutex;
 
 static void write_to_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 {
@@ -50,7 +52,7 @@ static std::string to_uppercase(std::string s)
     return s;
 }
 
-static std::string handle_rpush_request(const std::vector<std::string>& redis_args, simple_resp::encoder &enc)
+static simple_resp::encode_result handle_rpush_request(const std::vector<std::string>& redis_args)
 {
     try {
         if (redis_args.size() < 3) {
@@ -102,7 +104,7 @@ static std::vector<std::string> split_list_elements(const std::string &original)
     }
 }
 
-static std::string handle_lrange_request(const std::vector<std::string>& redis_args, simple_resp::encoder &enc)
+static simple_resp::encode_result handle_lrange_request(const std::vector<std::string>& redis_args)
 {
     try {
         if (redis_args.size() != 4) {
@@ -118,7 +120,7 @@ static std::string handle_lrange_request(const std::vector<std::string>& redis_a
     }
 }
 
-static std::string handle_ltrim_request(const std::vector<std::string>& redis_args, simple_resp::encoder &enc)
+static simple_resp::encode_result handle_ltrim_request(const std::vector<std::string>& redis_args)
 {
     try {
         Result result;
@@ -145,27 +147,28 @@ static std::string handle_ltrim_request(const std::vector<std::string>& redis_ar
 
 static void process_req(const std::vector<request> &req)
 {
-    simple_resp::decoder dec;
-    simple_resp::encoder enc;
-    std::string response;
+    simple_resp::decode_result decode_result;
+    simple_resp::encode_result encode_result;
+
     char send_buffer[1024] = {'0'};
 
     for (const request & r : req) {
-        if (dec.decode(r.cmd) == simple_resp::OK) {
-            std::string command = std::move(to_uppercase(dec.decoded_redis_command[0]));
+        decode_result = dec.decode(r.cmd);
+        if (decode_result.status == simple_resp::OK) {
+            std::string command = std::move(to_uppercase(decode_result.response[0]));
             if (command == "RPUSH") {
-                response = handle_rpush_request(dec.decoded_redis_command, enc);
+                encode_result = handle_rpush_request(decode_result.response);
             } else if (command == "LRANGE") {
-                response = handle_lrange_request(dec.decoded_redis_command, enc);
+                encode_result = handle_lrange_request(decode_result.response);
             } else if (command == "LTRIM") {
-                response = handle_ltrim_request(dec.decoded_redis_command, enc);
+                encode_result = handle_ltrim_request(decode_result.response);
             } else {
-                response = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
+                encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
             }
         } else {
-            response = enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
+            encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
         }
-        reply(r.fd, send_buffer, response);
+        reply(r.fd, send_buffer, encode_result.response);
     }
 }
 
@@ -173,9 +176,8 @@ void worker(int thread_num)
 {
     int i;
     std::vector<request> handle_requests;
-    std::cout << "worker start: " << thread_num << std::endl;
     while(1) {
-        request_queue_mutext.lock();
+        request_queue_mutex.lock();
         i = 0;
         int handle_req_num = request_queue.size() / thread_num > 0 ? int(request_queue.size() / thread_num):int(request_queue.size());
         while (!request_queue.empty()) {
@@ -186,7 +188,7 @@ void worker(int thread_num)
             handle_requests.push_back(r);
             request_queue.pop();
         }
-        request_queue_mutext.unlock();
+        request_queue_mutex.unlock();
         process_req(handle_requests);
         handle_requests.clear();
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
