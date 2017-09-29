@@ -52,7 +52,7 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
 
 - Environment
 
-    - OS: Linux ubuntu 3.19.0-25-generic #26~14.04.1-Ubuntu SMP Fri Jul 24 21:16:20 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+    - OS: Linux ubuntu 3.19.0-25-generic x86_64 GNU/Linux
     
     - CPU: 16
     
