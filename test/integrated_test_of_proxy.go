@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/go-redis/redis"
 	"math/rand"
@@ -127,19 +128,30 @@ func testLrangeCommand(client *redis.Client) {
 }
 
 func main() {
-	if isLogCabinRunning("192.168.2.109:5254") {
-		client := redis.NewClient(&redis.Options{
-			Addr:     "192.168.2.109:6380",
-			Password: "", // no password set
-			DB:       0,  // use default DB
-		})
 
-		testRpushCommand(client)
-		testLtrimCommand(client)
-		testLrangeCommand(client)
-		os.Exit(0)
+	clusterAddr := flag.String("cluster", "localhost:5254", "address of logcabin cluster")
+	proxyAddr := flag.String("proxy", "localhost:6380", "address of logcabin redis proxy")
+
+	if len(os.Args) != 3 {
+		flag.Usage()
 	} else {
-		fmt.Printf("CRITICAL: logcabin is not running !\n")
-		os.Exit(1)
+
+		flag.Parse()
+
+		if isLogCabinRunning(*clusterAddr) {
+			client := redis.NewClient(&redis.Options{
+				Addr:     *proxyAddr,
+				Password: "", // no password set
+				DB:       0,  // use default DB
+			})
+
+			testRpushCommand(client)
+			testLtrimCommand(client)
+			testLrangeCommand(client)
+			os.Exit(0)
+		} else {
+			fmt.Printf("CRITICAL: logcabin is not running !\n")
+			os.Exit(1)
+		}
 	}
 }

@@ -54,9 +54,9 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
 
 - make sure your golang working environment(the test code depends on [go-redis](https://github.com/go-redis/redis))
 
-- execuate following command:
+- execuate following command(suppose your logcabin cluster and proxy are all running at '192.168.2.109' address):
 
-      $ go run test/integrated_test_of_proxy.go
+      $ go run test/integrated_test_of_proxy.go --cluster=192.168.2.109:5254 --proxy=192.168.2.109:6380
       => TEST rpush command successfully
       => TEST ltrim command successfully
       => TEST lrange command successfully
