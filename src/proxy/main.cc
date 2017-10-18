@@ -11,9 +11,10 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#include "handler.h"
 #include "proxy.h"
-#include "LogCabin/Client.h"
 #include "simple_resp.h"
+#include "LogCabin/Client.h"
 
 using LogCabin::Client::Cluster;
 using LogCabin::Client::Tree;
@@ -25,7 +26,6 @@ struct request {
     std::string cmd;
 };
 
-static std::shared_ptr<Tree> pTree = nullptr;
 static std::queue<request> request_queue;
 static simple_resp::decoder dec;
 static simple_resp::encoder enc;
@@ -52,100 +52,7 @@ static std::string to_uppercase(std::string s)
     return s;
 }
 
-static simple_resp::encode_result handle_rpush_request(const std::vector<std::string>& redis_args)
-{
-    try {
-        if (redis_args.size() < 3) {
-            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'rpush' command"});
-        }
-        std::string key = redis_args[1];
-        for (auto it = redis_args.begin() + 2; it != redis_args.end(); ++it) {
-            pTree->rpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
-        }
-        return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
-    } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
-                  << e.what()
-                  << std::endl;
-        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
-    }
-}
-
-//TODO: need to refractor such ugly code
-static std::vector<std::string> split_list_elements(const std::string &original) {
-    std::vector<std::string> elements;
-    if (original.length() < 0) {
-        return elements;
-    } else {
-        std::string s(original);
-        std::string delimiter1 = ",";
-        std::string delimiter2 = ":";
-        std::string token;
-
-        size_t pos = 0;
-        int counter = 0;
-
-        while ((pos = s.find(delimiter1)) != std::string::npos) {
-            token = s.substr(0, pos);
-            elements.push_back(token);
-            s.erase(0, pos + delimiter1.length());
-        }
-
-        for (auto it = elements.begin(); it != elements.end(); it++) {
-            counter = 0;
-            while ((pos = it->find(delimiter2)) != std::string::npos && counter <= 4) {
-                counter++;
-                token = it->substr(0, pos);
-                it->erase(0, pos + delimiter2.length());
-            }
-        }
-
-        return elements;
-    }
-}
-
-static simple_resp::encode_result handle_lrange_request(const std::vector<std::string>& redis_args)
-{
-    try {
-        if (redis_args.size() != 4) {
-            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'lrange' command"});
-        }
-        //FIXME: need to detect return value but server is not yet support
-        return enc.encode(simple_resp::ARRAYS, std::move(split_list_elements(pTree->lrange(redis_args[1], redis_args[2] + " " + redis_args[3]))));
-    } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
-                  << e.what()
-                  << std::endl;
-        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
-    }
-}
-
-static simple_resp::encode_result handle_ltrim_request(const std::vector<std::string>& redis_args)
-{
-    try {
-        Result result;
-        if (redis_args.size() != 4) {
-            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'ltrim' command"});
-        }
-
-        result = pTree->ltrim(redis_args[1], redis_args[2] + " " + redis_args[3]);
-
-        if (result.status == Status::OK) {
-            return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
-        } else if (result.status == Status::INVALID_ARGUMENT) {
-            return enc.encode(simple_resp::ERRORS, {"ERR invalid arguments for 'ltrim' command"});
-        } else {
-            return enc.encode(simple_resp::ERRORS, {"ERR unknown error for 'ltrim' command"});
-        }
-    } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
-                  << e.what()
-                  << std::endl;
-        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
-    }
-}
-
-static void process_req(const std::vector<request> &req)
+static void process_req(const std::vector<request> &req, logcabin_redis_proxy::handler& handler)
 {
     simple_resp::decode_result decode_result;
     simple_resp::encode_result encode_result;
@@ -157,11 +64,11 @@ static void process_req(const std::vector<request> &req)
         if (decode_result.status == simple_resp::OK) {
             std::string command = std::move(to_uppercase(decode_result.response[0]));
             if (command == "RPUSH") {
-                encode_result = handle_rpush_request(decode_result.response);
+                encode_result = handler.handle_rpush_request(decode_result.response);
             } else if (command == "LRANGE") {
-                encode_result = handle_lrange_request(decode_result.response);
+                encode_result = handler.handle_lrange_request(decode_result.response);
             } else if (command == "LTRIM") {
-                encode_result = handle_ltrim_request(decode_result.response);
+                encode_result = handler.handle_ltrim_request(decode_result.response);
             } else {
                 encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
             }
@@ -172,7 +79,7 @@ static void process_req(const std::vector<request> &req)
     }
 }
 
-void worker(int thread_num)
+void worker(int thread_num, logcabin_redis_proxy::handler& handler)
 {
     int i;
     std::vector<request> handle_requests;
@@ -189,7 +96,7 @@ void worker(int thread_num)
             request_queue.pop();
         }
         request_queue_mutex.unlock();
-        process_req(handle_requests);
+        process_req(handle_requests, handler);
         handle_requests.clear();
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -340,15 +247,15 @@ int main(int argc, char** argv)
     try {
         option_parser options(argc, argv);
         Cluster cluster(options.cluster);
-        Tree tree = cluster.getTree();
-        pTree = std::make_shared<Tree>(tree);
+
+        logcabin_redis_proxy::handler handler(cluster);
         logcabin_redis_proxy::proxy proxy = {options.service_port, options.set_size, options.bind_addr,
                                              write_to_client, read_from_client, accept_tcp_handler};
         std::vector<std::thread> threads;
 
         // TODO: maybe need to join
         for (int i = 0; i != options.thread_num; ++i) {
-            threads.emplace_back(std::thread(worker, options.thread_num));
+            threads.emplace_back(std::thread(worker, options.thread_num, std::ref(handler)));
         }
 
         proxy.run();

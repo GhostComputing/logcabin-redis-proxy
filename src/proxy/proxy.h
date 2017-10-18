@@ -38,7 +38,7 @@ private:
     aeFileProc *accept_handler_ = nullptr;
 
 public:
-    // Proxy is non-copyable.
+    // proxy is non-copyable.
     proxy(const proxy&) = delete;
     proxy& operator=(const proxy&) = delete;
 };

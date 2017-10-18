@@ -22,6 +22,7 @@ set(SOURCE_FILES
             src/ae/anet.c
             src/proxy/proxy.cc
             src/proxy/main.cc
+            src/proxy/handler.cc
     )
 
 set(THIRD_PARTY_LIBS
