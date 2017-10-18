@@ -62,7 +62,7 @@ static void process_req(const std::vector<request> &req, logcabin_redis_proxy::h
     for (const request & r : req) {
         decode_result = dec.decode(r.cmd);
         if (decode_result.status == simple_resp::OK) {
-            std::string command = std::move(to_uppercase(decode_result.response[0]));
+            std::string command = to_uppercase(decode_result.response[0]);
             if (command == "RPUSH") {
                 encode_result = handler.handle_rpush_request(decode_result.response);
             } else if (command == "LRANGE") {
@@ -111,7 +111,7 @@ static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int ma
 
     if (size < 0) {
         std::cerr << "error happend: " << strerror(errno) << std::endl;
-        aeDeleteFileEvent(loop, fd, mask);
+        aeDeleteFileEvent(loop, fd, mask);f
     } else if (size == 0) {
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
     } else {

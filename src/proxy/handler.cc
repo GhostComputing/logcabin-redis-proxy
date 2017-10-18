@@ -30,7 +30,7 @@ handler::handle_lrange_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'lrange' command"});
         }
         //FIXME: need to detect return value but server is not yet support
-        return enc.encode(simple_resp::ARRAYS, std::move(split_list_elements(pTree->lrange(redis_args[1], redis_args[2] + " " + redis_args[3]))));
+        return enc.encode(simple_resp::ARRAYS, split_list_elements(pTree->lrange(redis_args[1], redis_args[2] + " " + redis_args[3])));
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
