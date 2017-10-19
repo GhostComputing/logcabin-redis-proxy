@@ -48,7 +48,7 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
       2) "2"
       3) "3"
 
-## Run integrated test
+## Run smoke test
 
 - make sure logcabin cluster and logcabin_redis_proxy is running;
 
@@ -56,7 +56,7 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
 
 - execuate following command(suppose your logcabin cluster and proxy are all running at '192.168.2.109' address):
 
-      $ go run test/integrated_test_of_proxy.go --cluster=192.168.2.109:5254 --proxy=192.168.2.109:6380
+      $ go run test/SmokeTest.go --cluster=192.168.2.109:5254 --proxy=192.168.2.109:6380
       => TEST rpush command successfully
       => TEST ltrim command successfully
       => TEST lrange command successfully
