@@ -74,100 +74,40 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
 - Run LogCabin benchmark
     
         $ ./Benchmark -c $LOCALSERVER --threads 50 --writes 10000
-        Benchmark took 632.791 ms to write 10000 objects OPS: 15803
+        Benchmark took 636.191 ms to write 10000 objects OPS: 15718.5
+        0.22% <= 1 milliseconds
+        1.28% <= 2 milliseconds
+        45.56% <= 3 milliseconds
+        95.28% <= 4 milliseconds
+        99.70% <= 5 milliseconds
+        99.98% <= 6 milliseconds
+        100.00% <= 7 milliseconds
         
 - Run redis benchmark
 
-        $./logcabin_redis_proxy ./logcabin_redis_proxy -c localhost:5254 -s 10240 -p 6380 -a 127.0.0.1 -t 50
+        $./logcabin_redis_proxy -c $LOCALSERVER -s 10240 -p 6380 -a $PROXY -t 50
         
-        $ redis-benchmark -p 6380 -t rpush -c 200 -n 10000 -r 100000000
-        ====== RPUSH ======
-          10000 requests completed in 0.63 seconds
-          200 parallel clients
-          3 bytes payload
-          keep alive: 1
-        
-        0.01% <= 1 milliseconds
-        0.66% <= 2 milliseconds
-        14.56% <= 3 milliseconds
-        20.93% <= 4 milliseconds
-        26.90% <= 5 milliseconds
-        34.24% <= 6 milliseconds
-        38.11% <= 7 milliseconds
-        44.64% <= 8 milliseconds
-        48.50% <= 9 milliseconds
-        53.03% <= 10 milliseconds
-        56.70% <= 11 milliseconds
-        60.24% <= 12 milliseconds
-        63.82% <= 13 milliseconds
-        66.63% <= 14 milliseconds
-        69.67% <= 15 milliseconds
-        72.24% <= 16 milliseconds
-        74.69% <= 17 milliseconds
-        77.06% <= 18 milliseconds
-        79.05% <= 19 milliseconds
-        80.86% <= 20 milliseconds
-        82.79% <= 21 milliseconds
-        84.25% <= 22 milliseconds
-        85.91% <= 23 milliseconds
-        87.11% <= 24 milliseconds
-        88.32% <= 25 milliseconds
-        89.64% <= 26 milliseconds
-        90.68% <= 27 milliseconds
-        91.63% <= 28 milliseconds
-        92.55% <= 29 milliseconds
-        93.34% <= 30 milliseconds
-        94.06% <= 31 milliseconds
-        94.68% <= 32 milliseconds
-        95.37% <= 33 milliseconds
-        95.80% <= 34 milliseconds
-        96.35% <= 35 milliseconds
-        96.81% <= 36 milliseconds
-        97.16% <= 37 milliseconds
-        97.56% <= 38 milliseconds
-        97.85% <= 39 milliseconds
-        98.18% <= 40 milliseconds
-        98.34% <= 41 milliseconds
-        98.59% <= 42 milliseconds
-        98.75% <= 43 milliseconds
-        98.85% <= 44 milliseconds
-        98.96% <= 45 milliseconds
-        99.09% <= 46 milliseconds
-        99.17% <= 47 milliseconds
-        99.26% <= 48 milliseconds
-        99.34% <= 49 milliseconds
-        99.40% <= 50 milliseconds
-        99.46% <= 51 milliseconds
-        99.52% <= 52 milliseconds
-        99.55% <= 53 milliseconds
-        99.58% <= 54 milliseconds
-        99.62% <= 55 milliseconds
-        99.67% <= 56 milliseconds
-        99.69% <= 57 milliseconds
-        99.71% <= 58 milliseconds
-        99.74% <= 59 milliseconds
-        99.75% <= 60 milliseconds
-        99.76% <= 61 milliseconds
-        99.77% <= 62 milliseconds
-        99.79% <= 64 milliseconds
-        99.81% <= 65 milliseconds
-        99.82% <= 66 milliseconds
-        99.83% <= 67 milliseconds
-        99.84% <= 69 milliseconds
-        99.85% <= 70 milliseconds
-        99.86% <= 71 milliseconds
-        99.87% <= 72 milliseconds
-        99.89% <= 74 milliseconds
-        99.90% <= 76 milliseconds
-        99.92% <= 80 milliseconds
-        99.94% <= 83 milliseconds
-        99.95% <= 84 milliseconds
-        99.96% <= 87 milliseconds
-        99.98% <= 90 milliseconds
-        99.99% <= 92 milliseconds
-        100.00% <= 95 milliseconds
-        15974.44 requests per second
-    
+        $ redis-benchmark -h $PROXY -p 6380 -t rpush -c 100 -n 10000 -r 100000000
+         ====== RPUSH ======
+           10000 requests completed in 0.64 seconds
+           100 parallel clients
+           3 bytes payload
+           keep alive: 1
+         
+         0.01% <= 1 milliseconds
+         0.03% <= 2 milliseconds
+         0.13% <= 3 milliseconds
+         0.19% <= 4 milliseconds
+         0.71% <= 5 milliseconds
+         41.99% <= 6 milliseconds
+         83.02% <= 7 milliseconds
+         91.51% <= 8 milliseconds
+         95.96% <= 9 milliseconds
+         98.58% <= 10 milliseconds
+         99.73% <= 11 milliseconds
+         99.98% <= 12 milliseconds
+         100.00% <= 12 milliseconds
+         15552.10 requests per second
  
 ## TODO
 
