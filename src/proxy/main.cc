@@ -72,6 +72,8 @@ process_req(const std::string& req, int fd)
             encode_result = phandler->handle_lrange_request(decode_result.response);
         } else if (command == "LTRIM") {
             encode_result = phandler->handle_ltrim_request(decode_result.response);
+        } else if (command == "EXPIRE") {
+            encode_result = phandler->handle_expire_request(decode_result.response);
         } else {
             encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
         }

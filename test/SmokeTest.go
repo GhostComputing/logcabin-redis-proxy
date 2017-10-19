@@ -127,6 +127,36 @@ func testLrangeCommand(client *redis.Client) {
 	}
 }
 
+func testExpireCommand(client *redis.Client) {
+	testKey := generateRandomKey("test-expire")
+
+	err := client.RPush(testKey, "one", "two", "three").Err()
+	if err != nil {
+		err := client.Expire(testKey, 1*time.Second).Err() // TTL is 5 seconds
+		time.Sleep(3 * time.Second)
+		if err != nil {
+			fmt.Printf("=> TEST expire command failed: %s\n", err.Error())
+			os.Exit(1)
+		} else {
+			data, err := client.LRange(testKey, 0, -1).Result()
+			if err == nil {
+				if reflect.DeepEqual(data, []string{}) == true {
+					fmt.Printf("=> TEST expire command successfully\n")
+				} else {
+					fmt.Printf("=> TEST expire command failed\n")
+					os.Exit(1)
+				}
+			} else {
+				fmt.Printf("=> TEST expire command failed, %s\n", err.Error())
+				os.Exit(1)
+			}
+		}
+	} else {
+		fmt.Printf("=> TEST expire command failed, %s\n", err.Error())
+		os.Exit(1)
+	}
+}
+
 func main() {
 
 	clusterAddr := flag.String("cluster", "localhost:5254", "address of logcabin cluster")
@@ -148,6 +178,7 @@ func main() {
 			testRpushCommand(client)
 			testLtrimCommand(client)
 			testLrangeCommand(client)
+			testExpireCommand(client)
 			os.Exit(0)
 		} else {
 			fmt.Printf("CRITICAL: logcabin is not running !\n")

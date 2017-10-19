@@ -65,6 +65,32 @@ handler::handle_ltrim_request(const std::vector<std::string>& redis_args)
     }
 }
 
+encode_result
+handler::handle_expire_request(const std::vector<std::string>& redis_args)
+{
+    try {
+        Result result;
+        if (redis_args.size() != 3) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'expire' command"});
+        }
+
+        result = pTree->expire(redis_args[1], redis_args[2]);
+
+        if (result.status == Status::OK) {
+            return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
+        } else if (result.status == Status::INVALID_ARGUMENT) {
+            return enc.encode(simple_resp::ERRORS, {"ERR invalid arguments for 'expire' command"});
+        } else {
+            return enc.encode(simple_resp::ERRORS, {"ERR unknown error for 'expire' command"});
+        }
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
+
 //TODO: need to refractor such ugly code
 std::vector<std::string>
 handler::split_list_elements(const std::string& original) {

@@ -10,7 +10,7 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
 
 - run the following command:
 
-      $ git submodule update --init # download submodule simple_resp 
+      $ git submodule update --init # download submodule simple_resp / logcabin / ThreadPool
       $ mkdir build && cd build
       $ cmake ..
       $ make -j`nproc`
