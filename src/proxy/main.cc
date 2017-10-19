@@ -22,15 +22,8 @@ using LogCabin::Client::Tree;
 using LogCabin::Client::Result;
 using LogCabin::Client::Status;
 
-struct request {
-    int fd;
-    std::string cmd;
-};
-
-static std::queue<request> request_queue;
 static simple_resp::decoder dec;
 static simple_resp::encoder enc;
-std::mutex request_queue_mutex;
 
 std::unique_ptr<ThreadPool> pThreadPool;
 std::unique_ptr<logcabin_redis_proxy::handler> phandler;
@@ -232,8 +225,6 @@ int main(int argc, char** argv)
 
         logcabin_redis_proxy::proxy proxy = {options.service_port, options.set_size, options.bind_addr,
                                              write_to_client, read_from_client, accept_tcp_handler};
-        std::vector<std::thread> threads;
-
         phandler.reset(new logcabin_redis_proxy::handler(cluster));
         pThreadPool.reset(new ThreadPool(static_cast<size_t>(options.thread_num)));
 
