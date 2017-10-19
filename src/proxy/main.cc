@@ -111,7 +111,7 @@ static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int ma
 
     if (size < 0) {
         std::cerr << "error happend: " << strerror(errno) << std::endl;
-        aeDeleteFileEvent(loop, fd, mask);f
+        aeDeleteFileEvent(loop, fd, mask);
     } else if (size == 0) {
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
     } else {
