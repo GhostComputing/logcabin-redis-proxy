@@ -18,7 +18,7 @@ handler::handle_rpush_request(const std::vector<std::string> &redis_args)
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
                   << std::endl;
-        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
 
@@ -35,7 +35,7 @@ handler::handle_lrange_request(const std::vector<std::string>& redis_args)
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
                   << std::endl;
-        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened\""});
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
 
