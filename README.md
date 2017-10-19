@@ -109,16 +109,15 @@ logcabin-redis-proxy is the proxy that supports redis compatible protocol and wo
          100.00% <= 12 milliseconds
          15552.10 requests per second
  
-## TODO
+## Supported commands
 
-The project is woking on the following feature:
+- `RPUSH`
+   
+   - **Caveat**: it just return "+OK" instead of the key size (because 
+     logcabin cluster don't support redis-like return value yet);
+   
+- `LRANGE`
 
-- High performance and asynchronous
+- `LTRIM`
 
-- Support more redis-like command
-
-- More test cases(both unit test and integrated test)
-
-- Key sharding
-
-- Add more log
+- `EXPIRE`
