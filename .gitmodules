@@ -1,12 +1,13 @@
 [submodule "deps/simple_resp"]
-	path = deps/simple_resp
-	url = https://github.com/GhostComputing/simple_resp
+    path = deps/simple_resp
+    url = https://github.com/GhostComputing/simple_resp
     ignore = dirty
 [submodule "deps/logcabin"]
-	path = deps/logcabin
-	url = https://github.com/tigerzhang/logcabin
-	branch = rocksdb-fsm-2
+    path = deps/logcabin
+    url = https://github.com/tigerzhang/logcabin
+    branch = rocksdb-fsm-2
     ignore = dirty
 [submodule "deps/ThreadPool"]
-	path = deps/ThreadPool
-	url = https://github.com/progschj/ThreadPool.git
+    path = deps/ThreadPool
+    url = https://github.com/progschj/ThreadPool.git
+    ignore = dirty
