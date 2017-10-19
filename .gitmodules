@@ -7,3 +7,6 @@
 	url = https://github.com/tigerzhang/logcabin
 	branch = rocksdb-fsm-2
     ignore = dirty
+[submodule "deps/ThreadPool"]
+	path = deps/ThreadPool
+	url = https://github.com/progschj/ThreadPool.git

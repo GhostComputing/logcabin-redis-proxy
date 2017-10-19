@@ -15,6 +15,7 @@
 #include "proxy.h"
 #include "simple_resp.h"
 #include "LogCabin/Client.h"
+#include "ThreadPool.h"
 
 using LogCabin::Client::Cluster;
 using LogCabin::Client::Tree;
@@ -30,6 +31,9 @@ static std::queue<request> request_queue;
 static simple_resp::decoder dec;
 static simple_resp::encoder enc;
 std::mutex request_queue_mutex;
+
+std::unique_ptr<ThreadPool> pThreadPool;
+std::unique_ptr<logcabin_redis_proxy::handler> phandler;
 
 static void write_to_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 {
@@ -52,55 +56,34 @@ static std::string to_uppercase(std::string s)
     return s;
 }
 
-static void process_req(const std::vector<request> &req, logcabin_redis_proxy::handler& handler)
+static void process_req(const std::string& req, int fd)
 {
     simple_resp::decode_result decode_result;
     simple_resp::encode_result encode_result;
 
     char send_buffer[1024] = {'0'};
 
-    for (const request & r : req) {
-        decode_result = dec.decode(r.cmd);
-        if (decode_result.status == simple_resp::OK) {
-            std::string command = to_uppercase(decode_result.response[0]);
-            if (command == "RPUSH") {
-                encode_result = handler.handle_rpush_request(decode_result.response);
-            } else if (command == "LRANGE") {
-                encode_result = handler.handle_lrange_request(decode_result.response);
-            } else if (command == "LTRIM") {
-                encode_result = handler.handle_ltrim_request(decode_result.response);
-            } else {
-                encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
-            }
+    decode_result = dec.decode(req);
+    if (decode_result.status == simple_resp::OK) {
+        std::string command = to_uppercase(decode_result.response[0]);
+        if (command == "RPUSH") {
+            encode_result = phandler->handle_rpush_request(decode_result.response);
+        } else if (command == "LRANGE") {
+            encode_result = phandler->handle_lrange_request(decode_result.response);
+        } else if (command == "LTRIM") {
+            encode_result = phandler->handle_ltrim_request(decode_result.response);
         } else {
-            encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
+            encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
         }
-        reply(r.fd, send_buffer, encode_result.response);
+    } else {
+        encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
     }
+    reply(fd, send_buffer, encode_result.response);
 }
 
-void worker(int thread_num, logcabin_redis_proxy::handler& handler)
+void worker(std::string& command, int fd)
 {
-    int i;
-    std::vector<request> handle_requests;
-    while(1) {
-        request_queue_mutex.lock();
-        i = 0;
-        int handle_req_num = request_queue.size() / thread_num > 0 ? int(request_queue.size() / thread_num):int(request_queue.size());
-        while (!request_queue.empty()) {
-            if (++i > handle_req_num) {
-                break;
-            }
-            request r = request_queue.front();
-            handle_requests.push_back(r);
-            request_queue.pop();
-        }
-        request_queue_mutex.unlock();
-        process_req(handle_requests, handler);
-        handle_requests.clear();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-
+    process_req(command, fd);
 }
 
 static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
@@ -116,8 +99,7 @@ static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int ma
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
     } else {
         std::string command(recv_buffer);
-        request req = {fd, command};
-        request_queue.emplace(req);
+        pThreadPool->enqueue(worker, command, fd);
     }
 }
 
@@ -248,15 +230,12 @@ int main(int argc, char** argv)
         option_parser options(argc, argv);
         Cluster cluster(options.cluster);
 
-        logcabin_redis_proxy::handler handler(cluster);
         logcabin_redis_proxy::proxy proxy = {options.service_port, options.set_size, options.bind_addr,
                                              write_to_client, read_from_client, accept_tcp_handler};
         std::vector<std::thread> threads;
 
-        // TODO: maybe need to join
-        for (int i = 0; i != options.thread_num; ++i) {
-            threads.emplace_back(std::thread(worker, options.thread_num, std::ref(handler)));
-        }
+        phandler.reset(new logcabin_redis_proxy::handler(cluster));
+        pThreadPool.reset(new ThreadPool(static_cast<size_t>(options.thread_num)));
 
         proxy.run();
     } catch (const LogCabin::Client::Exception &e) {

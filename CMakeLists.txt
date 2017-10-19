@@ -35,6 +35,7 @@ set(THIRD_PARTY_LIBS
 include_directories(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/simple_resp/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/ThreadPool
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/logcabin/include
     )
 
