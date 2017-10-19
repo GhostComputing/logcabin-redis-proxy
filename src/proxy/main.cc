@@ -22,24 +22,30 @@ using LogCabin::Client::Tree;
 using LogCabin::Client::Result;
 using LogCabin::Client::Status;
 
+using simple_resp::decode_result;
+using simple_resp::encode_result;
+
 static simple_resp::decoder dec;
 static simple_resp::encoder enc;
 
 std::unique_ptr<ThreadPool> pThreadPool;
 std::unique_ptr<logcabin_redis_proxy::handler> phandler;
 
-static void write_to_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
+static void
+write_to_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 {
     // Not yet implemented
 }
 
-static void reply(int fd, char *send_buffer, std::string &content)
+static void
+reply(int fd, char *send_buffer, std::string &content)
 {
     memcpy(send_buffer, content.c_str(), content.length());
     write(fd, send_buffer, content.length());
 }
 
-static std::string to_uppercase(std::string s)
+static std::string
+to_uppercase(std::string s)
 {
     for (auto &i : s) {
         if (i >= 'a' && i <= 'z') {
@@ -49,10 +55,11 @@ static std::string to_uppercase(std::string s)
     return s;
 }
 
-static void process_req(const std::string& req, int fd)
+static void
+process_req(const std::string& req, int fd)
 {
-    simple_resp::decode_result decode_result;
-    simple_resp::encode_result encode_result;
+    decode_result decode_result;
+    encode_result encode_result;
 
     char send_buffer[1024] = {'0'};
 
@@ -74,12 +81,14 @@ static void process_req(const std::string& req, int fd)
     reply(fd, send_buffer, encode_result.response);
 }
 
-void worker(std::string& command, int fd)
+void
+worker(std::string& command, int fd)
 {
     process_req(command, fd);
 }
 
-static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
+static void
+read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 {
     const int buffer_size = 1024;
     char recv_buffer[buffer_size] = {0};
@@ -96,7 +105,8 @@ static void read_from_client(aeEventLoop *loop, int fd, void *clientdata, int ma
     }
 }
 
-static void accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
+static void
+accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
 {
     int client_port, client_fd;
     char client_ip[128];
