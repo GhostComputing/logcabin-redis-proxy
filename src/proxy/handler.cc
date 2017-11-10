@@ -1,6 +1,27 @@
 #include "handler.h"
 
 namespace logcabin_redis_proxy {
+    
+encode_result
+handler::handle_lpush_request(const std::vector<std::string> &redis_args)
+{
+    try {
+        if (redis_args.size() < 3) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'lpush' command"});
+        }
+        std::string key = redis_args[1];
+        for (auto it = redis_args.begin() + 2; it != redis_args.end(); ++it) {
+            pTree->lpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
+        }
+        return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
+
 
 encode_result
 handler::handle_rpush_request(const std::vector<std::string> &redis_args)

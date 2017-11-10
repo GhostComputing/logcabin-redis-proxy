@@ -46,7 +46,7 @@ if (NOT EXISTS ${LOGCABIN_DIR}/build)
     )
 endif()
 
-if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/deps/glog/.lib)
+if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/deps/glog/.libs)
     message(STATUS "Building glog =>")
     execute_process(
         COMMAND "./autogen.sh && ./configure && make"
@@ -82,7 +82,7 @@ include_directories(
 
 add_subdirectory(deps/simple_resp)
 
-add_compile_options(-ggdb3)
+add_compile_options(-g)
 
 ## turn this on for production release
 #add_compile_options(-DNDEBUG)

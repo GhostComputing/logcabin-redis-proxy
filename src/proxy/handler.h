@@ -20,6 +20,7 @@ public:
     explicit handler(Cluster& cluster) : pTree(std::make_shared<Tree>(cluster.getTree()))
     { }
     encode_result handle_rpush_request(const std::vector<std::string>& redis_args);
+    encode_result handle_lpush_request(const std::vector<std::string>& redis_args);
     encode_result handle_lrange_request(const std::vector<std::string>& redis_args);
     encode_result handle_ltrim_request(const std::vector<std::string>& redis_args);
     encode_result handle_expire_request(const std::vector<std::string>& redis_args);

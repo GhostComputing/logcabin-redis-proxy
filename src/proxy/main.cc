@@ -70,6 +70,8 @@ process_req(const std::string& req, int fd)
         std::string command = to_uppercase(decode_result.response[0]);
         if (command == "RPUSH") {
             encode_result = phandler->handle_rpush_request(decode_result.response);
+        }else if (command == "LPUSH") {
+            encode_result = phandler->handle_lpush_request(decode_result.response);
         } else if (command == "LRANGE") {
             encode_result = phandler->handle_lrange_request(decode_result.response);
         } else if (command == "LTRIM") {
