@@ -5,3 +5,12 @@ cmake-build-debug
 *.o
 *.a
 pre_built
+CMakeFiles/
+CMakeCache.txt
+core
+INFO_*
+ERROR_*
+Makefile
+logcabin_redis_proxy
+logcabin_redis_proxy.INFO
+

@@ -153,6 +153,7 @@ void aeDeleteFileEvent(aeEventLoop *eventLoop, int fd, int mask)
             if (eventLoop->events[j].mask != AE_NONE) break;
         eventLoop->maxfd = j;
     }
+    close(fd);
 }
 
 int aeGetFileEvents(aeEventLoop *eventLoop, int fd) {

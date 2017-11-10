@@ -17,6 +17,8 @@
 #include "LogCabin/Client.h"
 #include "ThreadPool.h"
 
+#include "glog/logging.h"
+
 using LogCabin::Client::Cluster;
 using LogCabin::Client::Tree;
 using LogCabin::Client::Result;
@@ -97,9 +99,10 @@ read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
     ssize_t size = read(fd, recv_buffer, buffer_size);
 
     if (size < 0) {
-        std::cerr << "error happend: " << strerror(errno) << std::endl;
+        DLOG(ERROR) << "error happend: " << strerror(errno);
         aeDeleteFileEvent(loop, fd, mask);
     } else if (size == 0) {
+        DLOG(INFO) << "client disconnected";
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
     } else {
         std::string command(recv_buffer);
@@ -120,7 +123,11 @@ accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
     anetNonBlock(nullptr, client_fd);
 
     // register on message callback
-    assert(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, nullptr) != AE_ERR);
+    if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, nullptr) == AE_ERR){
+        LOG(ERROR) << "can not create file event for :" << client_fd;
+        return;
+    }
+    DLOG(INFO) << "open event done for fd:" << fd << ", the client_fd is:" << client_fd;
 }
 
 class option_parser {
@@ -231,6 +238,12 @@ public:
 
 int main(int argc, char** argv)
 {
+    google::InitGoogleLogging(argv[0]);
+    google::SetStderrLogging(google::FATAL);
+    google::SetLogDestination(google::INFO, "./INFO_");
+    google::SetLogDestination(google::ERROR, "./ERROR_");
+    google::SetLogDestination(google::WARNING, "./WARNING_");
+
     try {
         option_parser options(argc, argv);
         Cluster cluster(options.cluster);
@@ -247,4 +260,5 @@ int main(int argc, char** argv)
                   << std::endl;
         exit(1);
     }
+    google::ShutdownGoogleLogging();
 }
