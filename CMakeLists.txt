@@ -51,7 +51,15 @@ endif()
 if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/deps/glog/.libs)
     message(STATUS "Building glog =>")
     execute_process(
-        COMMAND "./autogen.sh && ./configure && make"
+        COMMAND "./autogen.sh"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/glog/
+        )
+    execute_process(
+        COMMAND "./configure"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/glog/
+        )
+    execute_process(
+        COMMAND "make"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/glog/
         )
 endif()
