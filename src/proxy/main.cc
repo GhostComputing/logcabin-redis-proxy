@@ -40,10 +40,15 @@ write_to_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 }
 
 static void
-reply(int fd, char *send_buffer, std::string &content)
+reply(int fd, std::string &content)
 {
-    memcpy(send_buffer, content.c_str(), content.length());
-    write(fd, send_buffer, content.length());
+    int sent_size = 0;
+    while(sent_size < content.length())
+    {
+
+        int one_send_size = write(fd, content.c_str() + sent_size, content.length());
+        sent_size += one_send_size;
+    }
 }
 
 static std::string
@@ -62,8 +67,6 @@ process_req(const std::string& req, int fd)
 {
     decode_result decode_result;
     encode_result encode_result;
-
-    char send_buffer[1024] = {'0'};
 
     decode_result = dec.decode(req);
     if (decode_result.status == simple_resp::OK) {
@@ -84,7 +87,7 @@ process_req(const std::string& req, int fd)
     } else {
         encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
     }
-    reply(fd, send_buffer, encode_result.response);
+    reply(fd, encode_result.response);
 }
 
 void

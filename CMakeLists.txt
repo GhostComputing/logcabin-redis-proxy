@@ -8,6 +8,7 @@ if (APPLE)
 elseif (UNIX)
 
     find_library(LZ4_LIB_STATIC NAMES liblz4.a)
+    find_library(PROTOBUF_LIB_STATIC NAMES libprotobuf.a)
     find_library(CRYPTOPP_LIB_STATIC NAMES libcrypto++.a)
     find_library(SNAPPY_LIB_STATIC NAMES libsnappy.a)
     find_library(BZ2_LIB_STATIC NAMES libbz2.a)
@@ -20,6 +21,7 @@ elseif (UNIX)
             ${SNAPPY_LIB_STATIC}
             ${BZ2_LIB_STATIC}
             ${JEMALLOC_LIB_STATIC}
+            ${PROTOBUF_LIB_STATIC}
             ${BOOST_SYSTEM_LIB_STATIC}
             z pthread rt
     )
@@ -68,7 +70,6 @@ set(THIRD_PARTY_LIBS
     ${LOGCABIN_DIR}/liblogcabin.a
     ${LOGCABIN_DIR}/build/third_party/gtest-c6d1811/libgtest.a
     ${LOGCABIN_DIR}/build/third_party/rocksdb-5.2.1/librocksdb.a
-    ${LOGCABIN_DIR}/build/third_party/protobuf-2.6.1/lib/libprotobuf.a
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/glog/.libs/libglog.a
     )
 

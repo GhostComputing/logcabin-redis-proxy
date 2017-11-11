@@ -1,4 +1,5 @@
 #include "handler.h"
+#include "glog/logging.h"
 
 namespace logcabin_redis_proxy {
     
@@ -51,7 +52,14 @@ handler::handle_lrange_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'lrange' command"});
         }
         //FIXME: need to detect return value but server is not yet support
-        return enc.encode(simple_resp::ARRAYS, split_list_elements(pTree->lrange(redis_args[1], redis_args[2] + " " + redis_args[3])));
+        auto result = pTree->lrange(redis_args[1], redis_args[2] + " " + redis_args[3]);
+
+        DLOG(INFO) << "get result from logcabin success, the result size is :" << result.size();
+
+        auto encodeResult = enc.encode(simple_resp::ARRAYS, result);
+
+        DLOG(INFO) << "encode success" ;
+        return encodeResult;
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
@@ -116,7 +124,7 @@ handler::handle_expire_request(const std::vector<std::string>& redis_args)
 std::vector<std::string>
 handler::split_list_elements(const std::string& original) {
     std::vector<std::string> elements;
-    if (original.length() < 0) {
+    if (original.length() == 0) {
         return elements;
     } else {
         std::string s(original);
