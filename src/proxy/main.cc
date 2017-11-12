@@ -46,7 +46,7 @@ reply(int fd, std::string &content)
     while(sent_size < content.length())
     {
 
-        int one_send_size = write(fd, content.c_str() + sent_size, content.length());
+        int one_send_size = write(fd, content.c_str() + sent_size, content.length() - sent_size);
         sent_size += one_send_size;
     }
 }
