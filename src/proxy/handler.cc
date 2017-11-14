@@ -14,7 +14,9 @@ handler::handle_lpush_request(const std::vector<std::string> &redis_args)
         for (auto it = redis_args.begin() + 2; it != redis_args.end(); ++it) {
             pTree->lpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
         }
-        return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
+        DLOG(INFO) << "now return result as integers";
+        encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
+        return result;
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
@@ -35,7 +37,7 @@ handler::handle_rpush_request(const std::vector<std::string> &redis_args)
         for (auto it = redis_args.begin() + 2; it != redis_args.end(); ++it) {
             pTree->rpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
         }
-        return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
+        return enc.encode(simple_resp::INTEGERS, {"1"});
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
@@ -103,7 +105,7 @@ handler::handle_expire_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'expire' command"});
         }
 
-        result = pTree->expire(redis_args[1], redis_args[2]);
+        result = pTree->expire(redis_args[1], std::atoi(redis_args[2].c_str()));
 
         if (result.status == Status::OK) {
             return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
