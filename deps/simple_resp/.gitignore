@@ -1,0 +1,8 @@
+build
+cmake-build-debug
+.idea
+.DS_Store
+*.a
+CMakeFiles
+basic_usage
+*.o
