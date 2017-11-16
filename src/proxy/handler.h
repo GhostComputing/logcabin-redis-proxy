@@ -24,6 +24,8 @@ public:
     encode_result handle_lrange_request(const std::vector<std::string>& redis_args);
     encode_result handle_ltrim_request(const std::vector<std::string>& redis_args);
     encode_result handle_expire_request(const std::vector<std::string>& redis_args);
+    encode_result handle_set_request(const std::vector<std::string>& redis_args);
+    encode_result handle_get_request(const std::vector<std::string>& redis_args);
     ~handler() = default;
 
 private:

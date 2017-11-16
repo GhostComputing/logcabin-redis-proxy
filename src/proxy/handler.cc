@@ -25,6 +25,23 @@ handler::handle_lpush_request(const std::vector<std::string> &redis_args)
     }
 }
 
+encode_result
+handler::handle_set_request(const std::vector<std::string> &redis_args)
+{
+    try {
+        if (redis_args.size() < 3) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'set' command"});
+        }
+        std::string key = redis_args[1];
+        pTree->writeEx(key, redis_args[2]); 
+        return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
 
 encode_result
 handler::handle_rpush_request(const std::vector<std::string> &redis_args)
@@ -45,6 +62,28 @@ handler::handle_rpush_request(const std::vector<std::string> &redis_args)
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
+
+encode_result
+handler::handle_get_request(const std::vector<std::string>& redis_args)
+{
+    try {
+        if (redis_args.size() != 2) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'read' command"});
+        }
+        //FIXME: need to detect return value but server is not yet support
+        auto result = pTree->readEx(redis_args[1]);
+
+        auto encodeResult = enc.encode(simple_resp::BULK_STRINGS, {result});
+
+        return encodeResult;
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
+
 
 encode_result
 handler::handle_lrange_request(const std::vector<std::string>& redis_args)

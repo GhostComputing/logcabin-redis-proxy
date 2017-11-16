@@ -24,7 +24,6 @@ using LogCabin::Client::Tree;
 using LogCabin::Client::Result;
 using LogCabin::Client::Status;
 
-using simple_resp::decode_result;
 using simple_resp::encode_result;
 
 static simple_resp::decoder dec;
@@ -45,7 +44,6 @@ reply(int fd, std::string &content)
     int sent_size = 0;
     while(sent_size < content.length())
     {
-
         int one_send_size = write(fd, content.c_str() + sent_size, content.length() - sent_size);
         sent_size += one_send_size;
     }
@@ -63,37 +61,21 @@ to_uppercase(std::string s)
 }
 
 static void
-process_req(const std::string& req, int fd)
+process_req(const std::string& req, int fd, void* clientdata)
 {
-    decode_result decode_result;
-    encode_result encode_result;
 
-    decode_result = dec.decode(req);
-    if (decode_result.status == simple_resp::OK) {
-        std::string command = to_uppercase(decode_result.response[0]);
-        if (command == "RPUSH") {
-            encode_result = phandler->handle_rpush_request(decode_result.response);
-        }else if (command == "LPUSH") {
-            encode_result = phandler->handle_lpush_request(decode_result.response);
-        } else if (command == "LRANGE") {
-            encode_result = phandler->handle_lrange_request(decode_result.response);
-        } else if (command == "LTRIM") {
-            encode_result = phandler->handle_ltrim_request(decode_result.response);
-        } else if (command == "EXPIRE") {
-            encode_result = phandler->handle_expire_request(decode_result.response);
-        } else {
-            encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
-        }
-    } else {
-        encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown internal error"});
+    auto ctx = static_cast<simple_resp::decode_context*>(clientdata);
+    if(nullptr != ctx)
+    {
+        ctx->append_new_buffer(req);
+        dec.decode(*ctx);
     }
-    reply(fd, encode_result.response);
 }
 
 void
-worker(std::string& command, int fd)
+worker(std::string& command, int fd, void* clientdata)
 {
-    process_req(command, fd);
+    process_req(command, fd, clientdata);
 }
 
 static void
@@ -105,13 +87,23 @@ read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 
     if (size < 0) {
         DLOG(ERROR) << "error happend: " << strerror(errno);
+        if(nullptr != clientdata)
+        {
+            auto ptr = static_cast<simple_resp::decode_context*> ( clientdata );
+            delete ptr;
+        }
         aeDeleteFileEvent(loop, fd, mask);
     } else if (size == 0) {
         DLOG(INFO) << "client disconnected";
+        if(nullptr != clientdata)
+        {
+            auto ptr = static_cast<simple_resp::decode_context*> ( clientdata );
+            delete ptr;
+        }
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
     } else {
         std::string command(recv_buffer);
-        pThreadPool->enqueue(worker, command, fd);
+        pThreadPool->enqueue(worker, command, fd, clientdata);
     }
 }
 
@@ -128,7 +120,42 @@ accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
     anetNonBlock(nullptr, client_fd);
 
     // register on message callback
-    if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, nullptr) == AE_ERR){
+    simple_resp::decode_context *ctx = new simple_resp::decode_context([client_fd](std::vector<std::string>&response){
+
+            encode_result encode_result;
+            std::string command = to_uppercase(response[0]);
+            if (command == "RPUSH") 
+            {
+                encode_result = phandler->handle_rpush_request(response);
+            }else if (command == "LPUSH") {
+                encode_result = phandler->handle_lpush_request(response);
+            } 
+            else if (command == "LRANGE") {
+                encode_result = phandler->handle_lrange_request(response);
+            }
+            else if (command == "LTRIM") 
+            {
+                encode_result = phandler->handle_ltrim_request(response);
+            }
+            else if (command == "EXPIRE") 
+            {
+                encode_result = phandler->handle_expire_request(response);
+            }
+            else if (command == "SET")
+            {
+                encode_result = phandler->handle_set_request(response);
+            } 
+            else if (command == "GET")
+            {
+                encode_result = phandler->handle_get_request(response);
+            }
+            else 
+            {
+                encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
+            }
+            reply(client_fd, encode_result.response);
+            });
+    if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, (void*)ctx) == AE_ERR){
         LOG(ERROR) << "can not create file event for :" << client_fd;
         return;
     }
@@ -244,7 +271,7 @@ public:
 int main(int argc, char** argv)
 {
     google::InitGoogleLogging(argv[0]);
-    google::SetStderrLogging(google::FATAL);
+    google::SetStderrLogging(google::INFO);
     google::SetLogDestination(google::INFO, "./INFO_");
     google::SetLogDestination(google::ERROR, "./ERROR_");
     google::SetLogDestination(google::WARNING, "./WARNING_");
