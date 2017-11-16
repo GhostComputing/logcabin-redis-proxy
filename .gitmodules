@@ -1,6 +1,6 @@
 [submodule "deps/simple_resp"]
-    path = deps/simple_resp
-    url = https://github.com/GhostComputing/simple_resp
+	path = deps/simple_resp
+	url = https://github.com/yunba/simple_resp.git
     ignore = dirty
 [submodule "deps/logcabin"]
     path = deps/logcabin
