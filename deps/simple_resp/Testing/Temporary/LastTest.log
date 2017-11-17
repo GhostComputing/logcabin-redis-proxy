@@ -1,0 +1,24 @@
+Start testing: Nov 16 13:34 CST
+----------------------------------------------------------
+1/1 Testing: decode_encode_test
+1/1 Test: decode_encode_test
+Command: "/home/johnzeng/simple_resp/decode_encode_test"
+Directory: /home/johnzeng/simple_resp
+"decode_encode_test" start time: Nov 16 13:34 CST
+Output:
+----------------------------------------------------------
+=> PASS DECODE_TEST_CASE_1
+=> PASS DECODE_TEST_CASE_2
+=> PASS DECODE_TEST_CASE_3
+=> PASS DECODE_TEST_CASE_4
+=> PASS ENCODE_TEST_CASE_1
+=> PASS ENCODE_TEST_CASE_2
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"decode_encode_test" end time: Nov 16 13:34 CST
+"decode_encode_test" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Nov 16 13:34 CST

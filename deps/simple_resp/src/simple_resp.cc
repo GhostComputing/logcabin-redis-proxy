@@ -145,6 +145,7 @@ namespace simple_resp {
                 result.response = "-" + args[0] + "\r\n";  // only takes the first element and ignore rest
                 break;
             case INTEGERS:
+                result.response = ":" + args[0] + "\r\n";
                 break;
             case BULK_STRINGS:
                 result.response = "$" + std::to_string(args[0].length()) + "\r\n" + args[0] + "\r\n";
