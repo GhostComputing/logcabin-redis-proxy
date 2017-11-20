@@ -67,26 +67,59 @@ to_uppercase(std::string s)
     return s;
 }
 
-static void
-process_req(const std::string& req, int fd, int session_id )
+void
+sender_worker(std::string& resp, int session_id)
 {
     auto ctx = SessionManager::getInstance()->get_ctx(session_id);
-    if(nullptr != ctx)
+    if(NULL != ctx)
     {
-        ctx->ctx.append_new_buffer(req);
-        dec.decode(ctx->ctx);
-        if(ctx->is_eof_reach)
-        {
-            SessionManager::getInstance()->erase_session(session_id);
-        }
+        //TODO: should wrap it in a class method
+        std::lock_guard<std::mutex> guard(ctx->fd_writing_mutex);
+        reply(ctx->fd, resp);
     }
 }
 
-void
-worker(std::string& command, int fd, void* clientdata)
+
+void send_reply(int session_id, std::string& response)
 {
-    int session_id = (int)clientdata;
-    process_req(command, fd, session_id);
+    pThreadPool->enqueue(sender_worker, response, session_id);
+}
+
+void
+processer_worker(std::vector<std::string>& request, int session_id)
+{
+    encode_result encode_result;
+    std::string command = to_uppercase(request[0]);
+    if (command == "RPUSH") 
+    {
+        encode_result = phandler->handle_rpush_request(request);
+    }else if (command == "LPUSH") {
+        encode_result = phandler->handle_lpush_request(request);
+    } 
+    else if (command == "LRANGE") {
+        encode_result = phandler->handle_lrange_request(request);
+    }
+    else if (command == "LTRIM") 
+    {
+        encode_result = phandler->handle_ltrim_request(request);
+    }
+    else if (command == "EXPIRE") 
+    {
+        encode_result = phandler->handle_expire_request(request);
+    }
+    else if (command == "SET")
+    {
+        encode_result = phandler->handle_set_request(request);
+    } 
+    else if (command == "GET")
+    {
+        encode_result = phandler->handle_get_request(request);
+    }
+    else 
+    {
+        encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
+    }
+    send_reply(session_id, encode_result.response);
 }
 
 static void
@@ -96,21 +129,24 @@ read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
     char recv_buffer[buffer_size] = {0};
     ssize_t size = read(fd, recv_buffer, buffer_size);
 
-    int session_id = (int)clientdata;
-
+    auto ctx = static_cast<simple_resp::decode_context*>(clientdata);
     if (size < 0) {
         DLOG(ERROR) << "error happend: " << strerror(errno);
         aeDeleteFileEvent(loop, fd, mask);
-        SessionManager::getInstance()->session_get_eof(session_id);
+        delete ctx;
+        SessionManager::getInstance()->erase_session_by_fd(fd);
     } else if (size == 0) {
         //BUG: fd can read end of file, but the write is not done
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
-        SessionManager::getInstance()->session_get_eof(session_id);
+        delete ctx;
+        SessionManager::getInstance()->erase_session_by_fd(fd);
     } else {
         std::string command(recv_buffer);
-        pThreadPool->enqueue(worker, command, fd, clientdata);
+        ctx->append_new_buffer(command);
+        dec.decode(*ctx);
     }
 }
+
 
 static void
 accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
@@ -125,42 +161,11 @@ accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
     anetNonBlock(nullptr, client_fd);
 
     // register on message callback
-    int new_session_id = SessionManager::getInstance()->insert_new_staus(client_fd, [client_fd](std::vector<std::string>&response){
-
-            encode_result encode_result;
-            std::string command = to_uppercase(response[0]);
-            if (command == "RPUSH") 
-            {
-                encode_result = phandler->handle_rpush_request(response);
-            }else if (command == "LPUSH") {
-                encode_result = phandler->handle_lpush_request(response);
-            } 
-            else if (command == "LRANGE") {
-                encode_result = phandler->handle_lrange_request(response);
-            }
-            else if (command == "LTRIM") 
-            {
-                encode_result = phandler->handle_ltrim_request(response);
-            }
-            else if (command == "EXPIRE") 
-            {
-                encode_result = phandler->handle_expire_request(response);
-            }
-            else if (command == "SET")
-            {
-                encode_result = phandler->handle_set_request(response);
-            } 
-            else if (command == "GET")
-            {
-                encode_result = phandler->handle_get_request(response);
-            }
-            else 
-            {
-                encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
-            }
-            reply(client_fd, encode_result.response);
+    int new_session_id = SessionManager::getInstance()->insert_new_staus(client_fd);
+     simple_resp::decode_context * ctx = new simple_resp::decode_context( [new_session_id](std::vector<std::string>&response){
+            pThreadPool->enqueue(processer_worker, response, new_session_id);
             });
-    if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, (void*)new_session_id) == AE_ERR){
+    if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, (void*)ctx) == AE_ERR){
         LOG(ERROR) << "can not create file event for :" << client_fd;
         return;
     }

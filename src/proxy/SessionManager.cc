@@ -11,10 +11,11 @@ SessionManager* SessionManager::getInstance(){
     return SessionManager::instance;
 }
 
-int SessionManager::insert_new_staus(int fd, std::function<void (std::vector<std::string>&)> callback)
+int SessionManager::insert_new_staus(int fd)
 {
     int session_id = get_next_session_counter_number();
-    ctx_map.insert(std::make_pair(session_id, SessionCtx(fd, callback)));
+    ctx_map.insert(std::make_pair(session_id, SessionCtx(fd)));
+    fd_map.insert(std::make_pair(fd, session_id));
     return session_id;
 }
 
@@ -33,11 +34,32 @@ void SessionManager::erase_session(int session_id)
     auto it = ctx_map.find(session_id);
     if(ctx_map.end() != it)
     {
-        ctx_map.erase(it);
+        int fd = it->second.fd;
+        auto fd_it = fd_map.find(fd);
+        if(fd_map.end() != fd_it)
+        {
+            fd_map.erase(fd_it);
+        }
         close(it->second.fd);
+        ctx_map.erase(it);
     }
 }
 
+void SessionManager::erase_session_by_fd(int fd)
+{
+    auto it = fd_map.find(fd);
+    if(fd_map.end() != it)
+    {
+        int session_id = it->second;
+        fd_map.erase(it);
+        auto session_it = ctx_map.find(session_id);
+        if(ctx_map.end() != session_it)
+        {
+            close(session_it->second.fd);
+            ctx_map.erase(session_id);
+        }
+    }
+}
 
 int SessionManager::get_next_session_counter_number()
 {
