@@ -133,13 +133,11 @@ read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
     if (size < 0) {
         DLOG(ERROR) << "error happend: " << strerror(errno);
         aeDeleteFileEvent(loop, fd, mask);
-        delete ctx;
-        SessionManager::getInstance()->erase_session_by_fd(fd);
+        SessionManager::getInstance()->erase_session(ctx->get_session_id());
     } else if (size == 0) {
         //BUG: fd can read end of file, but the write is not done
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
-        delete ctx;
-        SessionManager::getInstance()->erase_session_by_fd(fd);
+        SessionManager::getInstance()->erase_session(ctx->get_session_id());
     } else {
         std::string command(recv_buffer);
         ctx->append_new_buffer(command);
@@ -162,8 +160,8 @@ accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
 
     // register on message callback
     int new_session_id = SessionManager::getInstance()->insert_new_staus(client_fd);
-     simple_resp::decode_context * ctx = new simple_resp::decode_context( [new_session_id](std::vector<std::string>&response){
-            pThreadPool->enqueue(processer_worker, response, new_session_id);
+     simple_resp::decode_context * ctx = new simple_resp::decode_context(new_session_id, [new_session_id](int command_id, std::vector<std::string>&response){
+             pThreadPool->enqueue(processer_worker, response, new_session_id);
             });
     if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, (void*)ctx) == AE_ERR){
         LOG(ERROR) << "can not create file event for :" << client_fd;

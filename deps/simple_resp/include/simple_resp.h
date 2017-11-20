@@ -39,16 +39,21 @@ struct encode_result {
 };
 
 
-using request_handler = std::function<void(std::vector<std::string>&)>;
+using request_handler = std::function<void(int command_id, std::vector<std::string>&)>;
 class decode_context{
     public:
-        decode_context(request_handler); 
+        decode_context(int session_id, request_handler); 
         ~decode_context(){};
 
         void append_new_buffer(const std::string& buffer);
         void push_element(const std::string& element);
 
+        int get_session_id() { return session_id;}
+
     private:
+        int session_id;
+        int last_ack_command;
+        int last_command_id;
         request_handler handler;
         PARSE_STATE state;
 

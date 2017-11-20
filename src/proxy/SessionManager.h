@@ -23,7 +23,7 @@ private:
     static SessionManager* instance;
     int session_counter;
     std::mutex session_counter_mutex;
-    std::map<int, SessionCtx> ctx_map;
+    std::map<int, SessionCtx*> ctx_map;
     std::map<int, int> fd_map;
 
     int get_next_session_counter_number();

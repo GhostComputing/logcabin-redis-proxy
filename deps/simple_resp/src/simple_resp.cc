@@ -2,9 +2,12 @@
 
 namespace simple_resp {
 
-    decode_context::decode_context(request_handler req_handler){
+    decode_context::decode_context(int session_id, request_handler req_handler){
         state = INIT;
         this->handler = req_handler;
+        this->session_id = session_id;
+        last_ack_command = 0;
+        last_command_id = 0;
         buffered_input = "";
         reading_list_size = 0;
         req_list.clear();
@@ -21,7 +24,8 @@ namespace simple_resp {
         req_list.push_back(element);
         if(req_list.size() == reading_list_size)
         {
-            handler(req_list);
+            handler(last_command_id, req_list);
+            last_command_id ++;
             req_list.clear();
             reading_list_size = 0;
             state = INIT;
@@ -44,7 +48,8 @@ namespace simple_resp {
 
     void decoder::parse(decode_context& ctx)
     {
-        for(auto i = 0, token_start = 0; 
+        int token_start = 0;
+        for(auto i = 0; 
                 i < ctx.buffered_input.length(); i++){
 
             if(ctx.buffered_input.at(i) == '\r' && 
@@ -129,6 +134,7 @@ namespace simple_resp {
                 }
             }
         }
+        ctx.buffered_input = ctx.buffered_input.substr(token_start, ctx.buffered_input.size() - token_start);
     }
 
     encode_result encoder::encode(const RESP_TYPE &type, const std::vector<std::string> &args)
@@ -145,7 +151,7 @@ namespace simple_resp {
                 result.response = "-" + args[0] + "\r\n";  // only takes the first element and ignore rest
                 break;
             case INTEGERS:
-                result.response = ":" + args[0] + "\r\n";
+                result.response = "$" + std::to_string(args[0].length()) + "\r\n" + args[0] + "\r\n";
                 break;
             case BULK_STRINGS:
                 result.response = "$" + std::to_string(args[0].length()) + "\r\n" + args[0] + "\r\n";
