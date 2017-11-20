@@ -1,4 +1,5 @@
 #include <iostream>
+#include <signal.h>
 #include <vector>
 #include <queue>
 #include <mutex>
@@ -16,6 +17,7 @@
 #include "simple_resp.h"
 #include "LogCabin/Client.h"
 #include "ThreadPool.h"
+#include "SessionManager.h"
 
 #include "glog/logging.h"
 
@@ -44,7 +46,12 @@ reply(int fd, std::string &content)
     int sent_size = 0;
     while(sent_size < content.length())
     {
+        //BUG: one_send_size might be zero
+        //BUG: fd might be closed
         int one_send_size = write(fd, content.c_str() + sent_size, content.length() - sent_size);
+        if(0 == one_send_size){
+            return;
+        }
         sent_size += one_send_size;
     }
 }
@@ -61,21 +68,25 @@ to_uppercase(std::string s)
 }
 
 static void
-process_req(const std::string& req, int fd, void* clientdata)
+process_req(const std::string& req, int fd, int session_id )
 {
-
-    auto ctx = static_cast<simple_resp::decode_context*>(clientdata);
+    auto ctx = SessionManager::getInstance()->get_ctx(session_id);
     if(nullptr != ctx)
     {
-        ctx->append_new_buffer(req);
-        dec.decode(*ctx);
+        ctx->ctx.append_new_buffer(req);
+        dec.decode(ctx->ctx);
+        if(ctx->is_eof_reach)
+        {
+            SessionManager::getInstance()->erase_session(session_id);
+        }
     }
 }
 
 void
 worker(std::string& command, int fd, void* clientdata)
 {
-    process_req(command, fd, clientdata);
+    int session_id = (int)clientdata;
+    process_req(command, fd, session_id);
 }
 
 static void
@@ -85,22 +96,16 @@ read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
     char recv_buffer[buffer_size] = {0};
     ssize_t size = read(fd, recv_buffer, buffer_size);
 
+    int session_id = (int)clientdata;
+
     if (size < 0) {
         DLOG(ERROR) << "error happend: " << strerror(errno);
-        if(nullptr != clientdata)
-        {
-            auto ptr = static_cast<simple_resp::decode_context*> ( clientdata );
-            delete ptr;
-        }
         aeDeleteFileEvent(loop, fd, mask);
+        SessionManager::getInstance()->session_get_eof(session_id);
     } else if (size == 0) {
-        DLOG(INFO) << "client disconnected";
-        if(nullptr != clientdata)
-        {
-            auto ptr = static_cast<simple_resp::decode_context*> ( clientdata );
-            delete ptr;
-        }
+        //BUG: fd can read end of file, but the write is not done
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
+        SessionManager::getInstance()->session_get_eof(session_id);
     } else {
         std::string command(recv_buffer);
         pThreadPool->enqueue(worker, command, fd, clientdata);
@@ -120,7 +125,7 @@ accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
     anetNonBlock(nullptr, client_fd);
 
     // register on message callback
-    simple_resp::decode_context *ctx = new simple_resp::decode_context([client_fd](std::vector<std::string>&response){
+    int new_session_id = SessionManager::getInstance()->insert_new_staus(client_fd, [client_fd](std::vector<std::string>&response){
 
             encode_result encode_result;
             std::string command = to_uppercase(response[0]);
@@ -155,7 +160,7 @@ accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
             }
             reply(client_fd, encode_result.response);
             });
-    if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, (void*)ctx) == AE_ERR){
+    if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, (void*)new_session_id) == AE_ERR){
         LOG(ERROR) << "can not create file event for :" << client_fd;
         return;
     }
@@ -277,6 +282,7 @@ int main(int argc, char** argv)
     google::SetLogDestination(google::WARNING, "./WARNING_");
 
     try {
+        signal(SIGPIPE, SIG_IGN);
         option_parser options(argc, argv);
         Cluster cluster(options.cluster);
 

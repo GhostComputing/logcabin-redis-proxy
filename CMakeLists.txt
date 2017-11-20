@@ -71,6 +71,7 @@ set(SOURCE_FILES
             src/proxy/proxy.cc
             src/proxy/main.cc
             src/proxy/handler.cc
+            src/proxy/SessionManager.cc
     )
 
 
@@ -91,7 +92,8 @@ include_directories(
 
 add_subdirectory(deps/simple_resp)
 
-add_compile_options(-g)
+add_compile_options(-g -fpermissive)
+
 
 ## turn this on for production release
 #add_compile_options(-DNDEBUG)
