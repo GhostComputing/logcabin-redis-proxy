@@ -59,6 +59,26 @@ void DECODE_TEST_CASE_4(simple_resp::decoder& dec)
     std::cout << "=> PASS " << __FUNCTION__ << std::endl;
 }
 
+void DECODE_TEST_CASE_5(simple_resp::decoder& dec)
+{
+    std::string input("*3\r\n$3\r\nSET\r\n");
+    std::string input2("$1\r\na\r\n$1\r\nb\r\n");
+
+    int i = 0;
+    simple_resp::decode_context ctx(0, [&i] (int command_id, std::vector<std::string>& result){
+            std::vector<std::string> expect{"SET", "a", "b"};
+            assert(result == expect);
+            i++;
+            return;
+            });
+    ctx.append_new_buffer(input);
+    dec.decode(ctx);
+    ctx.append_new_buffer(input2);
+    dec.decode(ctx);
+    assert(i == 1);
+    std::cout << "=> PASS " << __FUNCTION__ << std::endl;
+}
+
 void ENCODE_TEST_CASE_1(simple_resp::encoder& enc)
 {
     std::vector<std::string> args = {"SET", "a", "b"};
@@ -88,6 +108,7 @@ int main()
     DECODE_TEST_CASE_2(dec);
     DECODE_TEST_CASE_3(dec);
     DECODE_TEST_CASE_4(dec);
+    DECODE_TEST_CASE_5(dec);
     ENCODE_TEST_CASE_1(enc);
     ENCODE_TEST_CASE_2(enc);
 

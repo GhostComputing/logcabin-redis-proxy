@@ -66,8 +66,6 @@ namespace simple_resp {
                 //maybe you reach the end of a token
 
                 auto token = ctx.buffered_input.substr(token_start, i - token_start);
-
-                std::cout << token << ", at state:" << ctx.state << std::endl;
                 //most of the time, token should be all buffered, but there are some exception
                 bool is_token_done = true;
                 switch(ctx.state)
@@ -106,7 +104,7 @@ namespace simple_resp {
                                         if(ctx.buffered_input.length() < i + ctx.reading_str_size){
                                             //the input is not fully buffered,
                                             //so don't waste your time, just return;
-                                            return;
+                                            break;
                                         }
                                     }
                                     break;
