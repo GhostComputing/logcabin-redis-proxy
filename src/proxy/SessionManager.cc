@@ -31,14 +31,24 @@ reply(int fd, std::string &content)
 void SessionCtx::insert_new_response(int command_id, std::string& resp)
 {
     std::lock_guard<std::mutex> guard(response_map_mutex);
-    buffered_responses.insert(std::make_pair(command_id, resp));
-    auto it = buffered_responses.begin();
-    DLOG(INFO) << "this ptr:"<< this;
-    DLOG(INFO) << "the command_id is:" << command_id << " and current to send id is " << to_send_command_id;
     if(command_id == to_send_command_id)
     {
-        send_first_response();
+        int reply_result = 1;
+        reply_result = reply(this->fd, resp);
+        if(reply_result <= 0 )
+        {
+            this->is_eof_reach = true;
+        }
+        to_send_command_id++;
+        DLOG(INFO) << this << ":after update, to command id:" << to_send_command_id ;
     }
+    else
+    {
+        //only insert when the command id is not the same as the old one
+        buffered_responses.insert(std::make_pair(command_id, resp));
+    }
+    DLOG(INFO) << this << ":the command_id is:" << command_id << " and current to send id is " << to_send_command_id;
+    send_first_response();
 }
 
 void SessionCtx::send_first_response()
@@ -47,13 +57,13 @@ void SessionCtx::send_first_response()
     int reply_result = 1;
     while(buffered_responses.end() != it && it->first == to_send_command_id)
     {
-        reply(this->fd, it->second);
+        reply_result = reply(this->fd, it->second);
         if(reply_result <= 0 )
         {
             break;
         }
         to_send_command_id++;
-        DLOG(INFO) << "after update, to command id:" << to_send_command_id;
+        DLOG(INFO) << this << ":after update, to command id:" << to_send_command_id ;
         buffered_responses.erase(it++);
     }
     if(reply_result <=0)
