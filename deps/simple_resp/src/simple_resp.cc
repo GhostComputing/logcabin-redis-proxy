@@ -12,9 +12,15 @@ namespace simple_resp {
         reading_list_size = 0;
         req_list.clear();
     }
+    void decode_context::pop_buffer(int start)
+    {
+        std::lock_guard<std::mutex> guard(buffer_mutex);
+        buffered_input = buffered_input.substr(start, buffered_input.size() - start);
+    }
 
     void decode_context::append_new_buffer(const std::string& buffer)
     {
+        std::lock_guard<std::mutex> guard(buffer_mutex);
         buffered_input.append(buffer);
     }
 
@@ -60,6 +66,8 @@ namespace simple_resp {
                 //maybe you reach the end of a token
 
                 auto token = ctx.buffered_input.substr(token_start, i - token_start);
+
+                std::cout << token << ", at state:" << ctx.state << std::endl;
                 //most of the time, token should be all buffered, but there are some exception
                 bool is_token_done = true;
                 switch(ctx.state)
@@ -134,7 +142,7 @@ namespace simple_resp {
                 }
             }
         }
-        ctx.buffered_input = ctx.buffered_input.substr(token_start, ctx.buffered_input.size() - token_start);
+        ctx.pop_buffer(token_start);
     }
 
     encode_result encoder::encode(const RESP_TYPE &type, const std::vector<std::string> &args)

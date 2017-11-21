@@ -56,11 +56,13 @@ to_uppercase(std::string s)
 void
 sender_worker(std::string& resp, int command_id, int session_id)
 {
+    DLOG(INFO) << " command id:" << command_id << ", session id " << session_id << ", will reply";
     auto ctx = SessionManager::getInstance()->get_ctx(session_id);
     if(NULL != ctx && ctx->is_eof_reach == false)
     {
         ctx->insert_new_response(command_id, resp);
     }
+    DLOG(INFO) << " command id:" << command_id << ", session id " << session_id << ",reply done";
 }
 
 void send_reply(int command_id, int session_id, std::string& response)
@@ -72,7 +74,7 @@ void
 processer_worker(int command_id, std::vector<std::string>& request, int session_id)
 {
     encode_result encode_result;
-    DLOG(INFO) << "command:" << request[0] <<", command id:" << command_id;
+    DLOG(INFO) << "command:" << request[0] <<", command id:" << command_id << ",session id is:" << session_id;
     std::string command = to_uppercase(request[0]);
     if (command == "RPUSH") 
     {
@@ -104,6 +106,7 @@ processer_worker(int command_id, std::vector<std::string>& request, int session_
         encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
     }
     send_reply(command_id, session_id, encode_result.response);
+    DLOG(INFO) << "send reply to queue done for " << command_id << "," << session_id;
 }
 
 static void
@@ -111,7 +114,7 @@ read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 {
     const int buffer_size = 1024;
     char recv_buffer[buffer_size] = {0};
-    ssize_t size = read(fd, recv_buffer, buffer_size);
+    ssize_t size = read(fd, recv_buffer, buffer_size - 1);
 
     auto ctx = static_cast<simple_resp::decode_context*>(clientdata);
     if (size < 0) {
@@ -123,7 +126,8 @@ read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
         SessionManager::getInstance()->erase_session(ctx->get_session_id());
     } else {
-        std::string command(recv_buffer);
+        std::string command(recv_buffer, size);
+        DLOG(INFO) << "command reach!";
         ctx->append_new_buffer(command);
         dec.decode(*ctx);
     }

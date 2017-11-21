@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <mutex>
 
 #ifndef SIMPLE_RESP_SIMPLE_RESP_H
 #define SIMPLE_RESP_SIMPLE_RESP_H
@@ -46,11 +47,13 @@ class decode_context{
         ~decode_context(){};
 
         void append_new_buffer(const std::string& buffer);
+        void pop_buffer(int start);
         void push_element(const std::string& element);
 
         int get_session_id() { return session_id;}
 
     private:
+        std::mutex buffer_mutex;
         int session_id;
         int last_ack_command;
         int last_command_id;

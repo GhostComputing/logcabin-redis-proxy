@@ -20,6 +20,9 @@ reply(int fd, std::string &content)
     while(sent_size < content.length())
     {
         int one_send_size = write(fd, content.c_str() + sent_size, content.length() - sent_size);
+
+        DLOG(INFO) << "write result:" << one_send_size;
+
         if(0 <= one_send_size){
             return one_send_size;
         }
