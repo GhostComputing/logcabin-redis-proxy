@@ -14,7 +14,6 @@ handler::handle_lpush_request(const std::vector<std::string> &redis_args)
         for (auto it = redis_args.begin() + 2; it != redis_args.end(); ++it) {
             pTree->lpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
         }
-        DLOG(INFO) << "now return result as integers";
         encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
         return result;
     } catch (const LogCabin::Client::Exception& e) {
@@ -95,11 +94,9 @@ handler::handle_lrange_request(const std::vector<std::string>& redis_args)
         //FIXME: need to detect return value but server is not yet support
         auto result = pTree->lrange(redis_args[1], redis_args[2] + " " + redis_args[3]);
 
-        DLOG(INFO) << "get result from logcabin success, the result size is :" << result.size();
 
         auto encodeResult = enc.encode(simple_resp::ARRAYS, result);
 
-        DLOG(INFO) << "encode success" ;
         return encodeResult;
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "

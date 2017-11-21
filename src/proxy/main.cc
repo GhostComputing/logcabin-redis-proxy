@@ -32,6 +32,7 @@ static simple_resp::decoder dec;
 static simple_resp::encoder enc;
 
 std::unique_ptr<ThreadPool> pThreadPool;
+std::unique_ptr<ThreadPool> pSenderThreadPool;
 std::unique_ptr<logcabin_redis_proxy::handler> phandler;
 
 static void
@@ -40,21 +41,6 @@ write_to_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
     // Not yet implemented
 }
 
-static void
-reply(int fd, std::string &content)
-{
-    int sent_size = 0;
-    while(sent_size < content.length())
-    {
-        //BUG: one_send_size might be zero
-        //BUG: fd might be closed
-        int one_send_size = write(fd, content.c_str() + sent_size, content.length() - sent_size);
-        if(0 == one_send_size){
-            return;
-        }
-        sent_size += one_send_size;
-    }
-}
 
 static std::string
 to_uppercase(std::string s)
@@ -68,27 +54,25 @@ to_uppercase(std::string s)
 }
 
 void
-sender_worker(std::string& resp, int session_id)
+sender_worker(std::string& resp, int command_id, int session_id)
 {
     auto ctx = SessionManager::getInstance()->get_ctx(session_id);
-    if(NULL != ctx)
+    if(NULL != ctx && ctx->is_eof_reach == false)
     {
-        //TODO: should wrap it in a class method
-        std::lock_guard<std::mutex> guard(ctx->fd_writing_mutex);
-        reply(ctx->fd, resp);
+        ctx->insert_new_response(command_id, resp);
     }
 }
 
-
-void send_reply(int session_id, std::string& response)
+void send_reply(int command_id, int session_id, std::string& response)
 {
-    pThreadPool->enqueue(sender_worker, response, session_id);
+    pSenderThreadPool->enqueue(sender_worker, response, command_id, session_id);
 }
 
 void
-processer_worker(std::vector<std::string>& request, int session_id)
+processer_worker(int command_id, std::vector<std::string>& request, int session_id)
 {
     encode_result encode_result;
+    DLOG(INFO) << "command:" << request[0] <<", command id:" << command_id;
     std::string command = to_uppercase(request[0]);
     if (command == "RPUSH") 
     {
@@ -119,7 +103,7 @@ processer_worker(std::vector<std::string>& request, int session_id)
     {
         encode_result = enc.encode(simple_resp::ERRORS, {"ERR unknown command"});
     }
-    send_reply(session_id, encode_result.response);
+    send_reply(command_id, session_id, encode_result.response);
 }
 
 static void
@@ -131,11 +115,11 @@ read_from_client(aeEventLoop *loop, int fd, void *clientdata, int mask)
 
     auto ctx = static_cast<simple_resp::decode_context*>(clientdata);
     if (size < 0) {
-        DLOG(ERROR) << "error happend: " << strerror(errno);
+        LOG(ERROR) << "error happend: " << strerror(errno);
         aeDeleteFileEvent(loop, fd, mask);
         SessionManager::getInstance()->erase_session(ctx->get_session_id());
     } else if (size == 0) {
-        //BUG: fd can read end of file, but the write is not done
+        DLOG(INFO) << "the connection is disconnected by client:" << fd <<", session id:" << ctx->get_session_id();
         aeDeleteFileEvent(loop, fd, mask);  // means client disconnected
         SessionManager::getInstance()->erase_session(ctx->get_session_id());
     } else {
@@ -161,7 +145,7 @@ accept_tcp_handler(aeEventLoop *loop, int fd, void *clientdata, int mask)
     // register on message callback
     int new_session_id = SessionManager::getInstance()->insert_new_staus(client_fd);
      simple_resp::decode_context * ctx = new simple_resp::decode_context(new_session_id, [new_session_id](int command_id, std::vector<std::string>&response){
-             pThreadPool->enqueue(processer_worker, response, new_session_id);
+             pThreadPool->enqueue(processer_worker, command_id, response, new_session_id);
             });
     if(aeCreateFileEvent(loop, client_fd, AE_READABLE, read_from_client, (void*)ctx) == AE_ERR){
         LOG(ERROR) << "can not create file event for :" << client_fd;
@@ -293,6 +277,7 @@ int main(int argc, char** argv)
                                              write_to_client, read_from_client, accept_tcp_handler};
         phandler.reset(new logcabin_redis_proxy::handler(cluster));
         pThreadPool.reset(new ThreadPool(static_cast<size_t>(options.thread_num)));
+        pSenderThreadPool.reset(new ThreadPool((size_t)1));
 
         proxy.run();
     } catch (const LogCabin::Client::Exception &e) {
