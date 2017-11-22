@@ -92,11 +92,11 @@ include_directories(
 
 add_subdirectory(deps/simple_resp)
 
-add_compile_options(-g -fpermissive)
+add_compile_options(-g)
 
 
 ## turn this on for production release
-#add_compile_options(-DNDEBUG)
+SET(CXX_FLAGS_RELEASE -DNDEBUG)
 
 add_executable(logcabin_redis_proxy ${SOURCE_FILES})
 target_link_libraries(logcabin_redis_proxy simpleresp ${THIRD_PARTY_LIBS} ${BASE_LIBS})

@@ -281,7 +281,7 @@ int main(int argc, char** argv)
                                              write_to_client, read_from_client, accept_tcp_handler};
         phandler.reset(new logcabin_redis_proxy::handler(cluster));
         pThreadPool.reset(new ThreadPool(static_cast<size_t>(options.thread_num)));
-        pSenderThreadPool.reset(new ThreadPool((size_t)1));
+        pSenderThreadPool.reset(new ThreadPool(static_cast<size_t>(options.thread_num)));
 
         proxy.run();
     } catch (const LogCabin::Client::Exception &e) {
