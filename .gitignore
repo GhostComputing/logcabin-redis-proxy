@@ -14,3 +14,4 @@ Makefile
 logcabin_redis_proxy
 logcabin_redis_proxy.INFO
 
+c_tags
