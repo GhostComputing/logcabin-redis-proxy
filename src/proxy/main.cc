@@ -275,11 +275,10 @@ int main(int argc, char** argv)
     try {
         signal(SIGPIPE, SIG_IGN);
         option_parser options(argc, argv);
-        Cluster cluster(options.cluster);
 
         logcabin_redis_proxy::proxy proxy = {options.service_port, options.set_size, options.bind_addr,
                                              write_to_client, read_from_client, accept_tcp_handler};
-        phandler.reset(new logcabin_redis_proxy::handler(cluster));
+        phandler.reset(new logcabin_redis_proxy::handler(options.cluster));
         pThreadPool.reset(new ThreadPool(static_cast<size_t>(options.thread_num)));
         pSenderThreadPool.reset(new ThreadPool(static_cast<size_t>(options.thread_num)));
 

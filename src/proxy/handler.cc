@@ -2,6 +2,14 @@
 #include "glog/logging.h"
 
 namespace logcabin_redis_proxy {
+
+    std::shared_ptr<Tree> handler::getTree(){
+        std::lock_guard<std::mutex> guard(ptree_counter_lock);
+        std::shared_ptr<Tree> ret = pTreeList[ptree_counter % 10];
+        ptree_counter++;
+        ptree_counter %= 10;
+        return ret;
+    }
     
 encode_result
 handler::handle_lpush_request(const std::vector<std::string> &redis_args)
@@ -12,7 +20,7 @@ handler::handle_lpush_request(const std::vector<std::string> &redis_args)
         }
         std::string key = redis_args[1];
         for (auto it = redis_args.begin() + 2; it != redis_args.end(); ++it) {
-            pTree->lpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
+            getTree()->lpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
         }
         encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
         return result;
@@ -32,7 +40,7 @@ handler::handle_set_request(const std::vector<std::string> &redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'set' command"});
         }
         std::string key = redis_args[1];
-        pTree->writeEx(key, redis_args[2]); 
+        getTree()->writeEx(key, redis_args[2]); 
         return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
@@ -51,7 +59,7 @@ handler::handle_rpush_request(const std::vector<std::string> &redis_args)
         }
         std::string key = redis_args[1];
         for (auto it = redis_args.begin() + 2; it != redis_args.end(); ++it) {
-            pTree->rpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
+            getTree()->rpushEx(key, *it);   // FIXME: just ignore status because server is not yet supported
         }
         return enc.encode(simple_resp::INTEGERS, {"1"});
     } catch (const LogCabin::Client::Exception& e) {
@@ -70,7 +78,7 @@ handler::handle_get_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'read' command"});
         }
         //FIXME: need to detect return value but server is not yet support
-        auto result = pTree->readEx(redis_args[1]);
+        auto result = getTree()->readEx(redis_args[1]);
 
         auto encodeResult = enc.encode(simple_resp::BULK_STRINGS, {result});
 
@@ -92,7 +100,7 @@ handler::handle_lrange_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'lrange' command"});
         }
         //FIXME: need to detect return value but server is not yet support
-        auto result = pTree->lrange(redis_args[1], redis_args[2] + " " + redis_args[3]);
+        auto result = getTree()->lrange(redis_args[1], redis_args[2] + " " + redis_args[3]);
 
 
         auto encodeResult = enc.encode(simple_resp::ARRAYS, result);
@@ -115,7 +123,7 @@ handler::handle_ltrim_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'ltrim' command"});
         }
 
-        result = pTree->ltrim(redis_args[1], redis_args[2] + " " + redis_args[3]);
+        result = getTree()->ltrim(redis_args[1], redis_args[2] + " " + redis_args[3]);
 
         if (result.status == Status::OK) {
             return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
@@ -141,7 +149,7 @@ handler::handle_expire_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'expire' command"});
         }
 
-        result = pTree->expire(redis_args[1], std::atoi(redis_args[2].c_str()));
+        result = getTree()->expire(redis_args[1], std::atoi(redis_args[2].c_str()));
 
         if (result.status == Status::OK) {
             return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});

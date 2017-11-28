@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include "LogCabin/Client.h"
 #include "simple_resp.h"
@@ -17,8 +18,15 @@ using simple_resp::encode_result;
 namespace logcabin_redis_proxy {
 class handler {
 public:
-    explicit handler(Cluster& cluster) : pTree(std::make_shared<Tree>(cluster.getTree()))
-    { }
+    explicit handler(const std::string& cluster_opts):ptree_counter(0)
+    { 
+        pTreeList.resize(10);
+        for(int i = 0 ; i < 10 ; i ++)
+        {
+            Cluster cluster(cluster_opts);
+            pTreeList[i] = std::make_shared<Tree>(cluster.getTree());
+        }
+    }
     encode_result handle_rpush_request(const std::vector<std::string>& redis_args);
     encode_result handle_lpush_request(const std::vector<std::string>& redis_args);
     encode_result handle_lrange_request(const std::vector<std::string>& redis_args);
@@ -29,10 +37,16 @@ public:
     ~handler() = default;
 
 private:
-    std::shared_ptr<Tree> pTree;
+
+    std::shared_ptr<Tree> getTree();
+
     simple_resp::decoder dec;
     simple_resp::encoder enc;
 
+    int ptree_counter;
+    std::mutex ptree_counter_lock;
+
+    std::vector<std::shared_ptr<Tree>> pTreeList;
     // helper functions
     std::vector<std::string> split_list_elements(const std::string& original);
 
