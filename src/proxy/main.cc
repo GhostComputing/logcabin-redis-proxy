@@ -79,6 +79,10 @@ processer_worker(int command_id, std::vector<std::string>& request, int session_
     if (command == "RPUSH") 
     {
         encode_result = phandler->handle_rpush_request(request);
+    }else if (command == "SADD") {
+        encode_result = phandler->handle_sadd_request(request);
+    }else if (command == "SREM") {
+        encode_result = phandler->handle_srem_request(request);
     }else if (command == "LPUSH") {
         encode_result = phandler->handle_lpush_request(request);
     } 

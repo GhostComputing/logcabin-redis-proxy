@@ -78,7 +78,6 @@ set(SOURCE_FILES
 set(THIRD_PARTY_LIBS
     ${LOGCABIN_DIR}/liblogcabin.a
     ${LOGCABIN_DIR}/build/third_party/gtest-c6d1811/libgtest.a
-    ${LOGCABIN_DIR}/build/third_party/rocksdb-5.2.1/librocksdb.a
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/glog/.libs/libglog.a
     )
 

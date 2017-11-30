@@ -10,6 +10,43 @@ namespace logcabin_redis_proxy {
         ptree_counter %= 10;
         return ret;
     }
+
+encode_result
+handler::handle_sadd_request(const std::vector<std::string> &redis_args)
+{
+    try {
+        if (redis_args.size() != 3) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'sadd' command"});
+        }
+        std::string key = redis_args[1];
+        getTree()->saddEx(key, redis_args[2]);   // FIXME: just ignore status because server is not yet supported
+        encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
+        return result;
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
+
+encode_result handler::handle_srem_request(const std::vector<std::string>& redis_args)
+{
+    try {
+        if (redis_args.size() != 3) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'srem' command"});
+        }
+        std::string key = redis_args[1];
+        getTree()->sremEx(key, redis_args[2]);   // FIXME: just ignore status because server is not yet supported
+        encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
+        return result;
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
     
 encode_result
 handler::handle_lpush_request(const std::vector<std::string> &redis_args)

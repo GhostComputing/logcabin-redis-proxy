@@ -27,6 +27,8 @@ public:
             pTreeList[i] = std::make_shared<Tree>(cluster.getTree());
         }
     }
+    encode_result handle_sadd_request(const std::vector<std::string>& redis_args);
+    encode_result handle_srem_request(const std::vector<std::string>& redis_args);
     encode_result handle_rpush_request(const std::vector<std::string>& redis_args);
     encode_result handle_lpush_request(const std::vector<std::string>& redis_args);
     encode_result handle_lrange_request(const std::vector<std::string>& redis_args);
