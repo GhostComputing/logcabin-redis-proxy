@@ -108,6 +108,30 @@ handler::handle_rpush_request(const std::vector<std::string> &redis_args)
 }
 
 encode_result
+handler::handle_scard_request(const std::vector<std::string>& redis_args)
+{
+    try {
+        if (redis_args.size() != 2) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'read' command"});
+        }
+        //FIXME: need to detect return value but server is not yet support
+        auto result = getTree()->scard(redis_args[1]);
+
+        auto encodeResult = enc.encode(simple_resp::INTEGERS, {result});
+
+        return encodeResult;
+    } catch (const LogCabin::Client::LookupException& e) {
+        return enc.encode(simple_resp::BULK_NIL, {""});
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
+
+
+encode_result
 handler::handle_get_request(const std::vector<std::string>& redis_args)
 {
     try {
@@ -118,6 +142,42 @@ handler::handle_get_request(const std::vector<std::string>& redis_args)
         auto result = getTree()->readEx(redis_args[1]);
 
         auto encodeResult = enc.encode(simple_resp::BULK_STRINGS, {result});
+
+        return encodeResult;
+    } catch (const LogCabin::Client::LookupException& e) {
+        return enc.encode(simple_resp::BULK_NIL, {""});
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
+
+encode_result
+handler::handle_mget_request(const std::vector<std::string>& redis_args)
+{
+    try {
+        if (redis_args.size() < 2) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'smembers' command"});
+        }
+        //FIXME: need to detect return value but server is not yet support
+
+        simple_resp::redis_type_value_pair_list result;
+        for(int i = 1; i < redis_args.size(); i++)
+        {
+            simple_resp::redis_type_value_pair one_result_pair;
+            try{
+                auto one_result = getTree()->readEx(redis_args[i]);
+                one_result_pair.type = simple_resp::SIMPLE_STRINGS;
+                one_result_pair.value = one_result;
+            } catch (const LogCabin::Client::LookupException& e) {
+                one_result_pair.type = simple_resp::BULK_NIL;
+                one_result_pair.value = "";
+            }
+            result.push_back(one_result_pair);
+        }
+        auto encodeResult = enc.encode(result);
 
         return encodeResult;
     } catch (const LogCabin::Client::Exception& e) {
@@ -164,6 +224,8 @@ handler::handle_lrange_request(const std::vector<std::string>& redis_args)
         auto encodeResult = enc.encode(simple_resp::ARRAYS, result);
 
         return encodeResult;
+    } catch (const LogCabin::Client::LookupException& e) {
+        return enc.encode(simple_resp::BULK_NIL, {""});
     } catch (const LogCabin::Client::Exception& e) {
         std::cerr << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()

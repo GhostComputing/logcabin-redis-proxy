@@ -17,6 +17,7 @@ enum RESP_TYPE {
     ERRORS = '-',
     INTEGERS = ':',
     BULK_STRINGS = '$',
+    BULK_NIL,
     ARRAYS = '*'
 };
 
@@ -39,6 +40,11 @@ struct encode_result {
     std::string response;
 };
 
+typedef struct _redis_type_value_pair{
+    RESP_TYPE type;
+    std::string value;
+}redis_type_value_pair;
+typedef std::vector<redis_type_value_pair> redis_type_value_pair_list;
 
 using request_handler = std::function<void(int command_id, std::vector<std::string>&)>;
 class decode_context{
@@ -86,6 +92,7 @@ class encoder {
 public:
     encoder() = default;
     encode_result encode(const RESP_TYPE &type, const std::vector<std::string> &args);
+    encode_result encode(const redis_type_value_pair_list& list);
 
     // Encoder is non-copyable.
     encoder(const encoder &) = delete;

@@ -143,6 +143,41 @@ namespace simple_resp {
         ctx.pop_buffer(token_start);
     }
 
+    encode_result encoder::encode(const redis_type_value_pair_list& list)
+    {
+        encode_result result;
+
+        result.status = OK;
+
+        result.response = "*" + std::to_string(list.size()) + "\r\n";
+        for(auto i : list)
+        {
+            RESP_TYPE type = i.type;
+            auto value = i.value;
+            switch (type) {
+                case SIMPLE_STRINGS:
+                    result.response += "+" + value + "\r\n";  // only takes the first element and ignore rest
+                    break;
+                case ERRORS:
+                    result.response += "-" + value + "\r\n";  // only takes the first element and ignore rest
+                    break;
+                case INTEGERS:
+                    result.response += "$" + std::to_string(value.length()) + "\r\n" + value + "\r\n";
+                    break;
+                case BULK_STRINGS:
+                    result.response += "$" + std::to_string(value.length()) + "\r\n" + value + "\r\n";
+                    break;
+                case BULK_NIL:
+                    result.response += "$-1\r\n";
+                    break;
+                case ARRAYS:
+                    //should not have arrays type in this request
+                    break;
+            }
+        }
+        return result;
+    }
+
     encode_result encoder::encode(const RESP_TYPE &type, const std::vector<std::string> &args)
     {
         encode_result result;
@@ -162,10 +197,13 @@ namespace simple_resp {
             case BULK_STRINGS:
                 result.response = "$" + std::to_string(args[0].length()) + "\r\n" + args[0] + "\r\n";
                 break;
+            case BULK_NIL:
+                result.response = "$-1\r\n";
+                break;
             case ARRAYS:
                 result.response = "*" + std::to_string(args.size()) + "\r\n";
-                for (auto it = args.begin(); it != args.end(); ++it) {
-                    result.response += "$" + std::to_string(it->length()) + "\r\n" + *it + "\r\n";
+                for (auto it : args) {
+                    result.response += "$" + std::to_string(it.length()) + "\r\n" + it + "\r\n";
                 }
                 break;
         }

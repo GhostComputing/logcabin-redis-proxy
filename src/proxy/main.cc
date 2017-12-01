@@ -83,8 +83,12 @@ processer_worker(int command_id, std::vector<std::string>& request, int session_
         encode_result = phandler->handle_sadd_request(request);
     }else if (command == "SREM") {
         encode_result = phandler->handle_srem_request(request);
+    }else if (command == "MGET") {
+        encode_result = phandler->handle_mget_request(request);
     }else if (command == "SMEMBERS") {
         encode_result = phandler->handle_smembers_request(request);
+    }else if (command == "SCARD") {
+        encode_result = phandler->handle_scard_request(request);
     }else if (command == "LPUSH") {
         encode_result = phandler->handle_lpush_request(request);
     } 
