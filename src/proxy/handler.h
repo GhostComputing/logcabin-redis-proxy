@@ -28,6 +28,7 @@ public:
         }
     }
     encode_result handle_sadd_request(const std::vector<std::string>& redis_args);
+    encode_result handle_smembers_request(const std::vector<std::string>& redis_args);
     encode_result handle_srem_request(const std::vector<std::string>& redis_args);
     encode_result handle_rpush_request(const std::vector<std::string>& redis_args);
     encode_result handle_lpush_request(const std::vector<std::string>& redis_args);

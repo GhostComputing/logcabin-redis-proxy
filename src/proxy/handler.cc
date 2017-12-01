@@ -128,6 +128,27 @@ handler::handle_get_request(const std::vector<std::string>& redis_args)
     }
 }
 
+encode_result
+handler::handle_smembers_request(const std::vector<std::string>& redis_args)
+{
+    try {
+        if (redis_args.size() != 2) {
+            return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'smembers' command"});
+        }
+        //FIXME: need to detect return value but server is not yet support
+        auto result = getTree()->smembers(redis_args[1]);
+
+
+        auto encodeResult = enc.encode(simple_resp::ARRAYS, result);
+
+        return encodeResult;
+    } catch (const LogCabin::Client::Exception& e) {
+        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what()
+                  << std::endl;
+        return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
+    }
+}
 
 encode_result
 handler::handle_lrange_request(const std::vector<std::string>& redis_args)
