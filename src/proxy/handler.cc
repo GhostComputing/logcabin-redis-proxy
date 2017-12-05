@@ -15,11 +15,17 @@ encode_result
 handler::handle_sadd_request(const std::vector<std::string> &redis_args)
 {
     try {
-        if (redis_args.size() != 3) {
+        if (redis_args.size() < 3) {
             return enc.encode(simple_resp::ERRORS, {"ERR wrong number of arguments for 'sadd' command"});
         }
         std::string key = redis_args[1];
-        getTree()->saddEx(key, redis_args[2]);   // FIXME: just ignore status because server is not yet supported
+
+        auto it = redis_args.begin();
+        it ++;
+        it ++;
+        auto args = std::vector<std::string>(it, redis_args.end());
+
+        getTree()->saddEx(key, args);   // FIXME: just ignore status because server is not yet supported
         encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
         return result;
     } catch (const LogCabin::Client::Exception& e) {
