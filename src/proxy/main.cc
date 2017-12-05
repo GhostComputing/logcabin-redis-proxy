@@ -294,9 +294,8 @@ int main(int argc, char** argv)
 
         proxy.run();
     } catch (const LogCabin::Client::Exception &e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
-                  << e.what()
-                  << std::endl;
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what();
         exit(1);
     }
     google::ShutdownGoogleLogging();

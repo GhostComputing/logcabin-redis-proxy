@@ -23,9 +23,9 @@ handler::handle_sadd_request(const std::vector<std::string> &redis_args)
         encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
         return result;
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -41,9 +41,9 @@ encode_result handler::handle_srem_request(const std::vector<std::string>& redis
         encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
         return result;
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -62,9 +62,9 @@ handler::handle_lpush_request(const std::vector<std::string> &redis_args)
         encode_result result = enc.encode(simple_resp::INTEGERS, {"1"});
         return result;
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -80,9 +80,9 @@ handler::handle_set_request(const std::vector<std::string> &redis_args)
         getTree()->writeEx(key, redis_args[2]); 
         return enc.encode(simple_resp::SIMPLE_STRINGS, {"OK"});
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -100,9 +100,9 @@ handler::handle_rpush_request(const std::vector<std::string> &redis_args)
         }
         return enc.encode(simple_resp::INTEGERS, {"1"});
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -123,9 +123,9 @@ handler::handle_scard_request(const std::vector<std::string>& redis_args)
     } catch (const LogCabin::Client::LookupException& e) {
         return enc.encode(simple_resp::BULK_NIL, {""});
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -147,9 +147,9 @@ handler::handle_get_request(const std::vector<std::string>& redis_args)
     } catch (const LogCabin::Client::LookupException& e) {
         return enc.encode(simple_resp::BULK_NIL, {""});
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -181,9 +181,9 @@ handler::handle_mget_request(const std::vector<std::string>& redis_args)
 
         return encodeResult;
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -203,9 +203,9 @@ handler::handle_smembers_request(const std::vector<std::string>& redis_args)
 
         return encodeResult;
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -227,9 +227,9 @@ handler::handle_lrange_request(const std::vector<std::string>& redis_args)
     } catch (const LogCabin::Client::LookupException& e) {
         return enc.encode(simple_resp::BULK_NIL, {""});
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -253,9 +253,9 @@ handler::handle_ltrim_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR unknown error for 'ltrim' command"});
         }
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
                   << e.what()
-                  << std::endl;
+                  ;
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
@@ -279,9 +279,8 @@ handler::handle_expire_request(const std::vector<std::string>& redis_args)
             return enc.encode(simple_resp::ERRORS, {"ERR unknown error for 'expire' command"});
         }
     } catch (const LogCabin::Client::Exception& e) {
-        std::cerr << "Exiting due to LogCabin::Client::Exception: "
-                  << e.what()
-                  << std::endl;
+        LOG(ERROR) << "Exiting due to LogCabin::Client::Exception: "
+                  << e.what();
         return enc.encode(simple_resp::ERRORS, {"ERR Internal error happened"});
     }
 }
